@@ -46,9 +46,8 @@ class CNN:
         self.tfp = None
         self.tfy = None
         self.tftrain_step = None
-        self.xentropy = None
+        self.xent = None
         self.tfkp = None
-        self.trainset = None
 
     def create_architecture(self):
         self.tfkp = tf.placeholder(tf.float32)
@@ -91,18 +90,33 @@ class CNN:
         x = tf.reduce_sum(x, [1, 2])
 
         self.tfy = tf.placeholder(tf.float32, [None, 37])
-        self.xentropy = tf.reduce_mean(
+        self.xent = tf.reduce_mean(
             tf.nn.sigmoid_cross_entropy_with_logits(x, self.tfy))
         self.tfp = tf.nn.sigmoid(x)
 
-        self.tftrain_step = tf.train.AdamOptimizer(0.001).minimize(self.xentropy)
+        self.tftrain_step = tf.train.AdamOptimizer(0.001).minimize(self.xent)
+
+    def prepare(self, images_path, labels_csv):
+        import csv
+        import os
+        with open(labels_csv) as f:
+            reader = csv.reader(f)
+            rows = [row for row in reader]
+            labels = np.array([[float(x) for x in r[1:]] for r in rows[1:]]).astype(np.float32)
+
+        files = [images_path + '/' + f for f in sorted(os.listdir(images_path))]
+
+        n = 10000 # for the test set
+        return (files[:n], labels[:n]), (files[n:], labels[n:])
 
     def batch(self, files, labels, n=10):
         ids = np.random.choice(len(files), n, replace=False)
 
-        xs = np.zeros((n, 424, 424, 3))
+        # 424x424
+        xs = np.zeros((n, 256, 256, 3), dtype=np.float32)
         for i in range(n):
-            xs[i] = imread(files[ids[i]], mode='RGB')
+            xs[i] = imread(files[ids[i]], mode='RGB')[84:84+256, 84:84+256].astype(np.float32) / 256.0
+
         ys = labels[ids]
 
         for i in range(len(xs)):
@@ -111,7 +125,7 @@ class CNN:
         return xs, ys
 
     def train(self, session, xs, ys):
-        _, xentropy = session.run([self.tftrain_step, self.xentropy],
+        _, xentropy = session.run([self.tftrain_step, self.xent],
             feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 0.5})
 
         return xentropy
@@ -120,7 +134,7 @@ class CNN:
         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
         run_metadata = tf.RunMetadata()
 
-        _, xentropy = session.run([self.tftrain_step, self.xentropy],
+        _, xentropy = session.run([self.tftrain_step, self.xent],
             feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 0.5},
             options=run_options, run_metadata=run_metadata)
 
@@ -132,32 +146,43 @@ class CNN:
             f.write(ctf)
         return xentropy
 
-    def predict_naive(self, session, images):
-        return session.run(self.tfp, feed_dict={self.tfx: images, self.tfkp: 1.0})
+    def predict_xentropy(self, session, files, labels, f=None):
+        import threading
+        import queue
 
-    def predict_naive_xentropy(self, session, images, labels):
-        return session.run([self.tfp, self.xentropy], feed_dict={self.tfx: images, self.tfy: labels, self.tfkp: 1.0})
+        p_total = []
+        xent_total = []
 
-    def predict(self, session, images):
-        # exploit symmetries to make better predictions
-        ps = self.predict_naive(session, images)
+        step = 10
+        q = queue.Queue(100)
 
-        for i in range(1, 8):
-            trans = np.copy(images)
-            for j in range(len(trans)):
-                trans[j] = dihedral(trans[j], i)
-            ps *= self.predict_naive(session, trans)
+        def runner():
+            for i in range(0, len(files), step):
+                xs, ys = q.get()
 
-        return ps
+                ps, xent = session.run([self.tfp, self.xent], feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 1.0})
 
-    def predict_xentropy(self, session, images, labels):
-        # exploit symmetries to make better predictions
-        ps, xent = self.predict_naive_xentropy(session, images, labels)
+                xent_total.append(xent * len(xs))
+                p_total.append(ps)
 
-        for i in range(1, 8):
-            trans = np.copy(images)
-            for j in range(len(trans)):
-                trans[j] = dihedral(trans[j], i)
-            ps *= self.predict_naive(session, trans)
+                q.task_done()
 
-        return ps, xent
+                if f is not None:
+                    f.write("{}/{}\n".format(i, len(files)))
+                    f.flush()
+
+        t = threading.Thread(target=runner)
+        t.daemon = True
+        t.start()
+
+        for i in range(0, len(files), step):
+            k = min(i + step, len(files))
+            xs = np.zeros((k - i, 256, 256, 3), dtype=np.float32)
+            ys = labels[i:k]
+            for j in range(0, k - i):
+                xs[j] = imread(files[i + j])[84:84+256, 84:84+256].astype(np.float32) / 256.0
+            q.put((xs, ys))
+
+        q.join()
+
+        return np.array(p_total), np.sum(xent_total) / len(files)

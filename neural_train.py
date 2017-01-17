@@ -2,22 +2,28 @@
 # >>> neural_train.py allimages.npz output_directory
 
 import tensorflow as tf
-import numpy as np
 from neural import CNN
 from sys import argv
 from time import time
 import queue
 import threading
-import csv
-import os
 
-def main(training_images_path, training_labels_path, output_path):
+
+def main(images_path, labels_path, output_path):
     f = open(output_path + '/log.txt', 'w')
+    fm = open(output_path + '/metrics.txt', 'w')
     fx = open(output_path + '/xent_batch.txt', 'w')
+
+    fm.write("# iteration xent_test xent_train\n")
+    fx.write("# iteration xent_batch\n")
 
     cnn = CNN()
 
     f.write("{}\n".format(argv))
+    f.flush()
+
+    (test_files, test_labels), (train_files, train_labels) = cnn.prepare(images_path, labels_path)
+    f.write("Data checked\n")
     f.flush()
 
     session = tf.Session()
@@ -32,15 +38,16 @@ def main(training_images_path, training_labels_path, output_path):
     f.write("Session ready\n")
     f.flush()
 
-    def print_log(xs, ys):
-        ps = cnn.predict(session, xs)
-
-        f.write('ys={}\nps={}\n'.format(ys, ps))
 
     def save_statistics(i):
         save_path = saver.save(session, '{}/{:05d}.data'.format(output_path, i))
         f.write('Model saved in file: {}\n'.format(save_path))
 
+        _, xent_test = cnn.predict_xentropy(session, test_files, test_labels, f)
+        _, xent_train = cnn.predict_xentropy(session, train_files[:len(test_files)], train_labels[:len(test_files)], f)
+
+        fm.write("{} {:.8g} {:.8g}".format(i, xent_test, xent_train))
+        fm.flush()
 
     # Use a Queue to generate batches and train in parallel
     n = 50000
@@ -56,7 +63,6 @@ def main(training_images_path, training_labels_path, output_path):
             time_qget = time()
 
             if i % 100 == 0 and i != 0:
-                print_log(xs, ys)
                 fx.flush()
 
             if i % 1000 == 0:
@@ -66,13 +72,13 @@ def main(training_images_path, training_labels_path, output_path):
 
             fx.write('{} {:.6}\n'.format(i, xentropy))
 
-            if i % 1000 == 0 and i != 0:
+            if i % 1000 == 0 and i != 0 or i == 250:
                 save_statistics(i)
 
             q.task_done()
 
             time_proc = time()
-            f.write('{:05d}: {: >6.3f}s+{: >6.3f}s {} xent_batch={: >6.3f}\n'.format(
+            f.write('{:05d}: {: >6.3f}s+{:.3f}s {} xent_batch={:.3f}\n'.format(
                 i, time_qget - time_0, time_proc - time_qget,
                 xs.shape, xentropy))
             f.flush()
@@ -82,20 +88,15 @@ def main(training_images_path, training_labels_path, output_path):
     t.daemon = True
     t.start()
 
-    with open(training_labels_path) as file:
-        reader = csv.reader(file)
-        rows = [row for row in reader]
-        labels = np.array([r[1:] for r in rows[1:]])
+    # the n+1
+    xs, ys = cnn.batch(train_files, train_labels)
+    q.put((xs, ys))
 
-    files = [training_images_path + '/' + f for f in sorted(os.listdir(training_images_path))]
-
-    n_feeders = 4
+    n_feeders = 2
     assert n % n_feeders == 0
     def feeder():
-        f.write('feeder launched\n')
-        f.flush()
         for _ in range(n // n_feeders):
-            xs, ys = cnn.batch(files, labels)
+            xs, ys = cnn.batch(train_files, train_labels)
             q.put((xs, ys))
 
     threads = [threading.Thread(target=feeder) for _ in range(n_feeders)]
@@ -104,14 +105,12 @@ def main(training_images_path, training_labels_path, output_path):
     for t in threads:
         t.join()
 
-    # the n+1
-    xs, ys = cnn.batch(files, labels)
-    q.put((xs, ys))
 
     q.join()
     session.close()
 
     f.close()
+    fm.close()
     fx.close()
 
 
