@@ -91,14 +91,12 @@ def main(arch_path, images_path, labels_path, output_path):
     f.write("{: <6} images into test set\n".format(len(test_files)))
     f.flush()
 
-    batch_size = 30
-
     def save_statistics(i):
         save_path = saver.save(session, '{}/iter/{:05d}.data'.format(output_path, i))
         f.write('Model saved in file: {}\n'.format(save_path))
 
-        xent_test = predict_all(session, CNN, cnn, test_files, test_labels, f, batch_size)
-        xent_train = predict_all(session, CNN, cnn, train_files[:len(test_files)], train_labels[:len(test_files)], f, batch_size)
+        xent_test = predict_all(session, CNN, cnn, test_files, test_labels, f, 50)
+        xent_train = predict_all(session, CNN, cnn, train_files[:len(test_files)], train_labels[:len(test_files)], f, 50)
 
         f.write("Xent   test    train\n")
         f.write("     {: ^8.4} {: ^8.4}\n".format(xent_test, xent_train))
@@ -148,14 +146,14 @@ def main(arch_path, images_path, labels_path, output_path):
     t.start()
 
     # the n+1
-    xs, ys = CNN.batch(train_files, train_labels, batch_size)
+    xs, ys = CNN.batch(train_files, train_labels)
     q.put((xs, ys))
 
     n_feeders = 2
     assert n % n_feeders == 0
     def feeder():
         for _ in range(n // n_feeders):
-            xs, ys = CNN.batch(train_files, train_labels, batch_size)
+            xs, ys = CNN.batch(train_files, train_labels)
             q.put((xs, ys))
 
     threads = [threading.Thread(target=feeder) for _ in range(n_feeders)]
