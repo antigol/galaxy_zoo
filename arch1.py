@@ -139,9 +139,9 @@ class CNN:
     def load(files):
         n = len(files)
         # 424x424
-        xs = np.zeros((n, 256, 256, 3), dtype=np.float32)
+        xs = np.zeros((n, 424, 424, 3), dtype=np.float32)
         for i in range(n):
-            xs[i] = imread(files[i], mode='RGB')[84:84+256, 84:84+256].astype(np.float32) / 256.0
+            xs[i] = imread(files[i], mode='RGB').astype(np.float32) / 256.0
 
         return xs
 

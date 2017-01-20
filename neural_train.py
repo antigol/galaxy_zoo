@@ -92,19 +92,21 @@ def main(arch_path, images_path, labels_path, output_path):
     f.write("{: <6} images into test set\n".format(len(test_files)))
     f.flush()
 
+    batch_size = 50
+
     def save_statistics(i):
         save_path = saver.save(session, '{}/{:05d}.data'.format(output_path, i))
         f.write('Model saved in file: {}\n'.format(save_path))
 
-        _, xent_test = predict_all(session, CNN, cnn, test_files, test_labels, f)
-        _, xent_train = predict_all(session, CNN, cnn, train_files[:len(test_files)], train_labels[:len(test_files)], f)
+        _, xent_test = predict_all(session, CNN, cnn, test_files, test_labels, f, batch_size)
+        _, xent_train = predict_all(session, CNN, cnn, train_files[:len(test_files)], train_labels[:len(test_files)], f, batch_size)
 
-        fm.write("{} {:.8g} {:.8g}".format(i, xent_test, xent_train))
+        fm.write("{} {:.8g} {:.8g}\n".format(i, xent_test, xent_train))
         fm.flush()
 
     # Use a Queue to generate batches and train in parallel
     n = 50000
-    q = queue.Queue(100)  # max 100 batches in the queue
+    q = queue.Queue(20)  # batches in the queue
 
     def trainer():
         while q.qsize() < 20:
@@ -143,14 +145,14 @@ def main(arch_path, images_path, labels_path, output_path):
     t.start()
 
     # the n+1
-    xs, ys = CNN.batch(train_files, train_labels)
+    xs, ys = CNN.batch(train_files, train_labels, batch_size)
     q.put((xs, ys))
 
     n_feeders = 2
     assert n % n_feeders == 0
     def feeder():
         for _ in range(n // n_feeders):
-            xs, ys = CNN.batch(train_files, train_labels)
+            xs, ys = CNN.batch(train_files, train_labels, batch_size)
             q.put((xs, ys))
 
     threads = [threading.Thread(target=feeder) for _ in range(n_feeders)]
