@@ -1,5 +1,5 @@
 # pylint: disable=C,R,no-member
-# >>> neural_train.py allimages.npz output_directory
+# >>> neural_train.py arch.py allimages.npz output_directory
 
 import tensorflow as tf
 import numpy as np
@@ -13,7 +13,6 @@ import importlib.util
 
 def predict_all(session, CNN, cnn, files, labels, f, step=50):
     q = queue.Queue(20)  # batches in the queue
-    ps = np.zeros(len(files), np.float64)
     xent_list = []
 
     def compute():
@@ -28,7 +27,7 @@ def predict_all(session, CNN, cnn, files, labels, f, step=50):
             t1 = time()
 
             k = min(j + step, len(files))
-            ps[j:k], xent = cnn.predict_xentropy(session, xs, ys)
+            _, xent = cnn.predict_xentropy(session, xs, ys)
             xent_list.append(xent * (k-j))
 
             t2 = time()
@@ -50,7 +49,7 @@ def predict_all(session, CNN, cnn, files, labels, f, step=50):
 
     q.join()
 
-    return ps, np.sum(xent_list) / len(files)
+    return np.sum(xent_list) / len(files)
 
 
 def main(arch_path, images_path, labels_path, output_path):
@@ -92,14 +91,18 @@ def main(arch_path, images_path, labels_path, output_path):
     f.write("{: <6} images into test set\n".format(len(test_files)))
     f.flush()
 
-    batch_size = 50
+    batch_size = 30
 
     def save_statistics(i):
-        save_path = saver.save(session, '{}/{:05d}.data'.format(output_path, i))
+        save_path = saver.save(session, '{}/iter/{:05d}.data'.format(output_path, i))
         f.write('Model saved in file: {}\n'.format(save_path))
 
-        _, xent_test = predict_all(session, CNN, cnn, test_files, test_labels, f, batch_size)
-        _, xent_train = predict_all(session, CNN, cnn, train_files[:len(test_files)], train_labels[:len(test_files)], f, batch_size)
+        xent_test = predict_all(session, CNN, cnn, test_files, test_labels, f, batch_size)
+        xent_train = predict_all(session, CNN, cnn, train_files[:len(test_files)], train_labels[:len(test_files)], f, batch_size)
+
+        f.write("Xent   test    train\n")
+        f.write("     {: ^8.4} {: ^8.4}\n".format(xent_test, xent_train))
+        f.flush()
 
         fm.write("{} {:.8g} {:.8g}\n".format(i, xent_test, xent_train))
         fm.flush()
@@ -123,13 +126,13 @@ def main(arch_path, images_path, labels_path, output_path):
                 fx.flush()
 
             if i % 1000 == 0:
-                xentropy = cnn.train_timeline(session, xs, ys, output_path + '/timeline{:05}.json'.format(i))
+                xentropy = cnn.train_timeline(session, xs, ys, output_path + '/iter/timeline_{:05}.json'.format(i))
             else:
                 xentropy = cnn.train(session, xs, ys)
 
             fx.write('{} {:.6}\n'.format(i, xentropy))
 
-            if i % 1000 == 0 and i != 0:
+            if i % 1000 == 0 and i != 0 or i == 100:
                 save_statistics(i)
 
             q.task_done()

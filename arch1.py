@@ -78,39 +78,38 @@ class CNN:
         x = self.tfx = tf.placeholder(tf.float32, [None, None, None, 3])
         x = batch_normalization(x, self.ub, self.acc)
 
-        x = tf.nn.relu(convolution(x, 16))
+        x = tf.nn.relu(convolution(x, 16, w=5, s=2)) # 212
         x = tf.nn.relu(convolution(x))
-        x = pool22(x)
+        x = pool22(x) # 106
         x = batch_normalization(x, self.ub, self.acc)
 
         x = tf.nn.relu(convolution(x, 32))
         x = tf.nn.relu(convolution(x))
-        x = pool22(x)
+        x = pool22(x) # 53
         x = batch_normalization(x, self.ub, self.acc)
 
         x = tf.nn.relu(convolution(x, 64))
         x = tf.nn.relu(convolution(x))
-        x = pool22(x)
+        x = pool22(x) # 27
         x = batch_normalization(x, self.ub, self.acc)
 
         x = tf.nn.relu(convolution(x, 128))
         x = tf.nn.relu(convolution(x))
-        x = pool22(x)
+        x = pool22(x) # 14
         x = batch_normalization(x, self.ub, self.acc)
 
         x = tf.nn.relu(convolution(x, 256))
         x = tf.nn.relu(convolution(x))
-        x = pool22(x)
+        x = pool22(x) # 7
         x = batch_normalization(x, self.ub, self.acc)
 
         x = tf.nn.dropout(x, self.tfkp)
-        x = tf.nn.relu(convolution(x, 512, w=1))
+        x = tf.nn.relu(convolution(x, 512, w=3, padding='VALID')) # 5
         x = tf.nn.dropout(x, self.tfkp)
-        x = tf.nn.relu(convolution(x, 512, w=1))
-        x = tf.nn.dropout(x, self.tfkp)
+        x = tf.nn.relu(convolution(x, 512, w=3, padding='VALID')) # 3
         x = batch_normalization(x, self.ub, self.acc)
 
-        x = convolution(x, 37, w=1)
+        x = convolution(x, 37, w=3, padding='VALID') # 1
 
         assert x.get_shape().as_list() == [None, None, None, 37]
         x = tf.reduce_sum(x, [1, 2])
