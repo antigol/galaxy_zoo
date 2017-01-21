@@ -149,48 +149,38 @@ class CNN:
 
         x = self.tfx = tf.placeholder(tf.float32, [None, 424, 424, 3])
 
-        x = tf.nn.relu(dihedral_convolution(x, 8 * 4, first=True))
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 4, w=6, s=2, first=True, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x))
-        x = pool22(x)
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 212, 212, 8 * 4]
+        assert x.get_shape().as_list() == [None, 210, 210, 8 * 4]
 
-        x = tf.nn.relu(dihedral_convolution(x, 8 * 8))
-        x = tf.nn.relu(dihedral_convolution(x))
-        x = pool22(x)
-        x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 106, 106, 8 * 8]
-
-        x = tf.nn.relu(dihedral_convolution(x, 8 * 16))
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 8, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
-        x = pool22(x)
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 52, 52, 8 * 16]
+        assert x.get_shape().as_list() == [None, 102, 102, 8 * 8]
 
-        x = tf.nn.relu(dihedral_convolution(x, 8 * 32))
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 16, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x))
-        x = pool22(x)
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 26, 26, 8 * 32]
+        assert x.get_shape().as_list() == [None, 50, 50, 8 * 16]
 
-        x = tf.nn.relu(dihedral_convolution(x, 8 * 64))
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 32, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
-        x = pool22(x)
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 12, 12, 8 * 64]
+        assert x.get_shape().as_list() == [None, 22, 22, 8 * 32]
 
-        x = tf.nn.relu(dihedral_convolution(x, 8 * 128))
-        x = tf.nn.relu(dihedral_convolution(x))
-        x = pool22(x)
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 64, w=4, s=2, padding='VALID'))
+        x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 6, 6, 8 * 128]
+        assert x.get_shape().as_list() == [None, 8, 8, 8 * 64]
 
-        x = tf.nn.relu(dihedral_convolution(x, 8 * 256, padding='VALID'))
-        x = tf.nn.relu(dihedral_convolution(x, w=4, padding='VALID'))
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 128, w=4, s=2, padding='VALID'))
+        x = tf.nn.relu(dihedral_convolution(x, w=3, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 1, 1, 8 * 256]
-        x = tf.reshape(x, [-1, 8 * 256])
+        assert x.get_shape().as_list() == [None, 1, 1, 8 * 128]
+        x = tf.reshape(x, [-1, 8 * 128])
 
+        x = dihedral_fullyconnected(x, 8 * 256)
         x = dihedral_fullyconnected(x, 8 * 37)
         self.test = x
         x = dihedral_pool(x)
