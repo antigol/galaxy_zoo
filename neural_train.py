@@ -10,10 +10,11 @@ import threading
 from shutil import copy2
 import os
 import importlib.util
+import math
 
 def predict_all(session, CNN, cnn, files, labels, f, step=50):
     q = queue.Queue(20)  # batches in the queue
-    xent_list = []
+    se_list = []
 
     def compute():
         while q.qsize() < 20:
@@ -27,8 +28,8 @@ def predict_all(session, CNN, cnn, files, labels, f, step=50):
             t1 = time()
 
             k = min(j + step, len(files))
-            _, xent = cnn.predict_xentropy(session, xs, ys)
-            xent_list.append(xent * (k-j))
+            _, mse = cnn.predict(session, xs, ys)
+            se_list.append(mse * (k-j))
 
             t2 = time()
             f.write('{}/{} ({}) {: >6.3f}s+{:.3f}s\n'.format(
@@ -49,7 +50,7 @@ def predict_all(session, CNN, cnn, files, labels, f, step=50):
 
     q.join()
 
-    return np.sum(xent_list) / len(files)
+    return np.sqrt(np.sum(se_list) / len(files))
 
 
 def main(arch_path, images_path, labels_path, output_path):
@@ -57,10 +58,10 @@ def main(arch_path, images_path, labels_path, output_path):
     os.makedirs(output_path + '/iter')
     f = open(output_path + '/log.txt', 'w')
     fm = open(output_path + '/metrics.txt', 'w')
-    fx = open(output_path + '/xent_batch.txt', 'w')
+    fx = open(output_path + '/rmse_batch.txt', 'w')
 
-    fm.write("# iteration xent_test xent_train\n")
-    fx.write("# iteration xent_batch\n")
+    fm.write("# iteration rmse_test rmse_train\n")
+    fx.write("# iteration rmse_batch\n")
 
     copy2(arch_path, output_path)
     spec = importlib.util.spec_from_file_location("module.name", arch_path)
@@ -95,14 +96,14 @@ def main(arch_path, images_path, labels_path, output_path):
         save_path = saver.save(session, '{}/iter/{:05d}.data'.format(output_path, i))
         f.write('Model saved in file: {}\n'.format(save_path))
 
-        xent_test = predict_all(session, CNN, cnn, test_files, test_labels, f, 50)
-        xent_train = predict_all(session, CNN, cnn, train_files[:len(test_files)], train_labels[:len(test_files)], f, 50)
+        rmse_test = predict_all(session, CNN, cnn, test_files, test_labels, f, 50)
+        rmse_train = predict_all(session, CNN, cnn, train_files[:len(test_files)], train_labels[:len(test_files)], f, 50)
 
-        f.write("Xent   test    train\n")
-        f.write("     {: ^8.4} {: ^8.4}\n".format(xent_test, xent_train))
+        f.write("RMSE   test    train\n")
+        f.write("     {: ^8.4} {: ^8.4}\n".format(rmse_test, rmse_train))
         f.flush()
 
-        fm.write("{} {:.8g} {:.8g}\n".format(i, xent_test, xent_train))
+        fm.write("{} {:.8g} {:.8g}\n".format(i, rmse_test, rmse_train))
         fm.flush()
 
     # Use a Queue to generate batches and train in parallel
@@ -124,11 +125,11 @@ def main(arch_path, images_path, labels_path, output_path):
                 fx.flush()
 
             if i % 1000 == 0:
-                xentropy = cnn.train_timeline(session, xs, ys, output_path + '/iter/timeline_{:05}.json'.format(i))
+                mse = cnn.train_timeline(session, xs, ys, output_path + '/iter/timeline_{:05}.json'.format(i))
             else:
-                xentropy = cnn.train(session, xs, ys)
+                mse = cnn.train(session, xs, ys)
 
-            fx.write('{} {:.6}\n'.format(i, xentropy))
+            fx.write('{} {:.6}\n'.format(i, math.sqrt(mse)))
 
             if i % 1000 == 0 and i != 0 or i == 100:
                 save_statistics(i)
@@ -136,8 +137,8 @@ def main(arch_path, images_path, labels_path, output_path):
             q.task_done()
 
             t2 = time()
-            f.write('{:05d}: ({}) {: >6.3f}s+{:.3f}s {} xent_batch={:.3f}\n'.format(
-                i, q.qsize(), t1 - t0, t2 - t1, xs.shape, xentropy))
+            f.write('{:05d}: ({}) {: >6.3f}s+{:.3f}s {} RMSE_batch={:.3f}\n'.format(
+                i, q.qsize(), t1 - t0, t2 - t1, xs.shape, math.sqrt(mse)))
             f.flush()
 
 

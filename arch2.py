@@ -98,7 +98,7 @@ def dihedral_pool(x):
         return tf.div(tf.add_n(xs), 8.0)
 
 def dihedral_batch_normalization(x, ub, acc):
-    depth = x.get_shape().as_list()[-1]
+    depth = x.get_shape().as_list()[3]
     assert depth % 8 == 0
 
     with tf.name_scope("bn_8x{}".format(depth // 8)):
@@ -170,7 +170,7 @@ class CNN:
         self.tfp = None
         self.tfy = None
         self.tftrain_step = None
-        self.xent = None
+        self.mse = None
         self.tfkp = None
         self.ub = None
         self.acc = None
@@ -237,9 +237,9 @@ class CNN:
         self.tfl = x
         self.tfp = tf.nn.sigmoid(x)
         self.tfy = tf.placeholder(tf.float32, [None, 37])
-        self.xent = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(x, self.tfy))
+        self.mse = tf.reduce_mean(tf.square(self.tfp - self.tfy))
 
-        self.tftrain_step = tf.train.AdamOptimizer(0.001).minimize(self.xent)
+        self.tftrain_step = tf.train.AdamOptimizer(0.001).minimize(self.mse)
 
     @staticmethod
     def prepare(images_path, labels_csv):
@@ -283,27 +283,27 @@ class CNN:
         elif self.train_counter < 20000:
             acc = 0.001
 
-        _, xentropy = session.run([self.tftrain_step, self.xent],
+        _, mse = session.run([self.tftrain_step, self.mse],
             feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 0.5, self.ub: ub, self.acc: acc},
             options=options, run_metadata=run_metadata)
 
         self.train_counter += 1
-        return xentropy
+        return mse
 
     def train_timeline(self, session, xs, ys, filename='timeline.json'):
         from tensorflow.python.client import timeline
         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
         run_metadata = tf.RunMetadata()
 
-        xentropy = self.train(session, xs, ys, run_options, run_metadata)
+        mse = self.train(session, xs, ys, run_options, run_metadata)
         # google chrome : chrome://tracing/
 
         tl = timeline.Timeline(run_metadata.step_stats)
         ctf = tl.generate_chrome_trace_format()
         with open(filename, 'w') as f:
             f.write(ctf)
-        return xentropy
+        return mse
 
-    def predict_xentropy(self, session, xs, ys):
-        return session.run([self.tfp, self.xent],
+    def predict(self, session, xs, ys):
+        return session.run([self.tfp, self.mse],
             feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 1.0, self.ub: 0.0, self.acc: 0.0})
