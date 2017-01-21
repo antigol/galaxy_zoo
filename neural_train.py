@@ -54,6 +54,7 @@ def predict_all(session, CNN, cnn, files, labels, f, step=50):
 
 
 def main(arch_path, images_path, labels_path, output_path):
+    time_total_0 = time()
     os.makedirs(output_path)
     os.makedirs(output_path + '/iter')
     f = open(output_path + '/log.txt', 'w')
@@ -166,6 +167,9 @@ def main(arch_path, images_path, labels_path, output_path):
 
     q.join()
     session.close()
+
+    t = time() - time_total_0
+    f.write("total time : {}h {}min".format(t // 3600, (t % 3600) // 60))
 
     f.close()
     fm.close()
