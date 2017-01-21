@@ -96,7 +96,7 @@ def main(arch_path, images_path, labels_path, output_path):
     def print_log(xs, ys):
         ps, mse = cnn.predict_mse(session, xs, ys)
 
-        text = " ".join(["{:.3f}/{:.3f}".format(p, y) for p,y in zip(ps[0], ys[0])])
+        text = " ".join(["{:.2f}/{:.2f}".format(p, y) for p,y in zip(ps[0], ys[0])])
 
         f.write("{}\n".format(text))
         f.write("MSE={}\n".format(mse))

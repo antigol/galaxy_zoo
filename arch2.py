@@ -107,11 +107,11 @@ def dihedral_batch_normalization(x, acc):
         acc_m = tf.Variable(tf.constant(0.0, shape=[depth // 8]), trainable=False, name="acc_m")
         acc_v = tf.Variable(tf.constant(1.0, shape=[depth // 8]), trainable=False, name="acc_v")
 
-        new_acc_m = tf.assign(acc_m, (1.0 - acc) * acc_m + acc * m)
-        new_acc_v = tf.assign(acc_v, (1.0 - acc) * acc_v + acc * v)
+        acc_m = tf.assign(acc_m, (1.0 - acc) * acc_m + acc * m)
+        acc_v = tf.assign(acc_v, (1.0 - acc) * acc_v + acc * v)
 
-        m = tf.tile(new_acc_m, [8])
-        v = tf.tile(new_acc_v, [8])
+        m = tf.tile(acc_m, [8])
+        v = tf.tile(acc_v, [8])
         m.set_shape([depth])
         v.set_shape([depth])
 
@@ -153,37 +153,45 @@ class CNN:
         x = tf.nn.relu(dihedral_convolution(x))
         x = dihedral_batch_normalization(x, self.acc)
         assert x.get_shape().as_list() == [None, 210, 210, 8 * 4]
+        x = tf.verify_tensor_all_finite(x, "conv 1")
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 8, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
         assert x.get_shape().as_list() == [None, 102, 102, 8 * 8]
+        x = tf.verify_tensor_all_finite(x, "conv 2")
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 16, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x))
         x = dihedral_batch_normalization(x, self.acc)
         assert x.get_shape().as_list() == [None, 50, 50, 8 * 16]
+        x = tf.verify_tensor_all_finite(x, "conv 3")
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 32, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
         assert x.get_shape().as_list() == [None, 22, 22, 8 * 32]
+        x = tf.verify_tensor_all_finite(x, "conv 4")
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 64, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
         assert x.get_shape().as_list() == [None, 8, 8, 8 * 64]
+        x = tf.verify_tensor_all_finite(x, "conv 5")
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 128, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x, w=3, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
         assert x.get_shape().as_list() == [None, 1, 1, 8 * 128]
         x = tf.reshape(x, [-1, 8 * 128])
+        x = tf.verify_tensor_all_finite(x, "conv 6")
 
         x = dihedral_fullyconnected(x, 8 * 256)
         x = dihedral_fullyconnected(x, 8 * 37)
+        x = tf.verify_tensor_all_finite(x, "fully connected")
         self.test = x
         x = dihedral_pool(x)
+        x = tf.verify_tensor_all_finite(x, "dihedral_pool")
 
         assert x.get_shape().as_list() == [None, 37]
 
@@ -191,6 +199,7 @@ class CNN:
         self.tfp = tf.nn.sigmoid(x)
         self.tfy = tf.placeholder(tf.float32, [None, 37])
         self.mse = tf.reduce_mean(tf.square(self.tfp - self.tfy))
+        self.mse = tf.verify_tensor_all_finite(self.mse, "mse is infinite")
 
         self.tftrain_step = tf.train.AdamOptimizer(0.001).minimize(self.mse)
 
