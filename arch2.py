@@ -105,7 +105,7 @@ def dihedral_batch_normalization(x, acc):
         m, v = moments(dihedral_pool(x), axes=[0, 1, 2])
 
         acc_m = tf.Variable(tf.constant(0.0, shape=[depth // 8]), trainable=False, name="acc_m")
-        acc_v = tf.Variable(tf.constant(0.0, shape=[depth // 8]), trainable=False, name="acc_v")
+        acc_v = tf.Variable(tf.constant(1.0, shape=[depth // 8]), trainable=False, name="acc_v")
 
         new_acc_m = tf.assign(acc_m, (1.0 - acc) * acc_m + acc * m)
         new_acc_v = tf.assign(acc_v, (1.0 - acc) * acc_v + acc * v)
@@ -252,6 +252,10 @@ class CNN:
             f.write(ctf)
         return mse
 
-    def predict(self, session, xs, ys):
+    def predict(self, session, xs):
+        return session.run(self.tfp,
+            feed_dict={self.tfx: xs, self.tfkp: 1.0, self.acc: 0.0})
+
+    def predict_mse(self, session, xs, ys):
         return session.run([self.tfp, self.mse],
             feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 1.0, self.acc: 0.0})

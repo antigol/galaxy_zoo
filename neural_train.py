@@ -28,7 +28,7 @@ def predict_all(session, CNN, cnn, files, labels, f, step=50):
             t1 = time()
 
             k = min(j + step, len(files))
-            _, mse = cnn.predict(session, xs, ys)
+            _, mse = cnn.predict_mse(session, xs, ys)
             se_list.append(mse * (k-j))
 
             t2 = time()
@@ -93,6 +93,15 @@ def main(arch_path, images_path, labels_path, output_path):
     f.write("{: <6} images into test set\n".format(len(test_files)))
     f.flush()
 
+    def print_log(xs, ys):
+        ps, mse = cnn.predict_mse(session, xs, ys)
+
+        text = " ".join(["{:.3f}/{:.3f}".format(p, y) for p,y in zip(ps[0], ys[0])])
+
+        f.write("{}\n".format(text))
+        f.write("MSE={}\n".format(mse))
+        f.flush()
+
     def save_statistics(i):
         save_path = saver.save(session, '{}/iter/{:05d}.data'.format(output_path, i))
         f.write('Model saved in file: {}\n'.format(save_path))
@@ -123,6 +132,7 @@ def main(arch_path, images_path, labels_path, output_path):
             t1 = time()
 
             if i % 100 == 0 and i != 0:
+                print_log(xs, ys)
                 fx.flush()
 
             if i % 1000 == 0:
@@ -138,8 +148,8 @@ def main(arch_path, images_path, labels_path, output_path):
             q.task_done()
 
             t2 = time()
-            f.write('{:05d}: ({}) {: >6.3f}s+{:.3f}s {} RMSE_batch={:.3f}\n'.format(
-                i, q.qsize(), t1 - t0, t2 - t1, xs.shape, math.sqrt(mse)))
+            f.write('{:05d}: ({}) {: >6.3f}s+{:.3f}s {} RMSE_batch={:.3f} (MSE={:.3f})\n'.format(
+                i, q.qsize(), t1 - t0, t2 - t1, xs.shape, math.sqrt(mse), mse))
             f.flush()
 
 
