@@ -97,7 +97,7 @@ def dihedral_pool(x):
         xs = tf.split(len(shape) - 1, 8, x)
         return tf.div(tf.add_n(xs), 8.0)
 
-def dihedral_batch_normalization(x, ub, acc):
+def dihedral_batch_normalization(x, acc):
     depth = x.get_shape().as_list()[3]
     assert depth % 8 == 0
 
@@ -110,26 +110,14 @@ def dihedral_batch_normalization(x, ub, acc):
         new_acc_m = tf.assign(acc_m, (1.0 - acc) * acc_m + acc * m)
         new_acc_v = tf.assign(acc_v, (1.0 - acc) * acc_v + acc * v)
 
-        m = tf.tile((1.0 - ub) * new_acc_m + ub * m, [8])
-        v = tf.tile((1.0 - ub) * new_acc_v + ub * v, [8])
+        m = tf.tile(new_acc_m, [8])
+        v = tf.tile(new_acc_v, [8])
         m.set_shape([depth])
         v.set_shape([depth])
 
         beta = tf.tile(tf.Variable(tf.constant(0.0, shape=[depth // 8])), [8])
         gamma = tf.tile(tf.Variable(tf.constant(1.0, shape=[depth // 8])), [8])
         return tf.nn.batch_normalization(x, m, v, beta, gamma, 1e-3)
-
-def convolution(x, f_out=None, s=1, w=3, padding='SAME', std=None):
-    f_in = x.get_shape().as_list()[3]
-    if f_out is None:
-        f_out = f_in
-    if std is None:
-        std = math.sqrt(2.0 / (w * w * f_in))
-
-    with tf.name_scope("conv_{}_{}".format(f_in, f_out)):
-        W = tf.Variable(tf.truncated_normal([w, w, f_in, f_out], stddev=std), name="W")
-        b = tf.Variable(tf.constant(0.0, shape=[f_out]), name="b")
-        return tf.nn.conv2d(x, W, strides=[1, s, s, 1], padding=padding) + b
 
 def pool22(x):
     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
@@ -138,28 +126,6 @@ def moments(x, axes):
     m = tf.reduce_mean(x, axes)
     v = tf.reduce_mean(tf.square(x), axes) - tf.square(m)
     return m, v
-
-def batch_normalization(x, ub, acc):
-    depth = x.get_shape().as_list()[3]
-
-    with tf.name_scope("bn_{}".format(depth)):
-        m, v = moments(x, axes=[0, 1, 2])
-
-        acc_m = tf.Variable(tf.constant(0.0, shape=[depth]), trainable=False, name="acc_m")
-        acc_v = tf.Variable(tf.constant(0.0, shape=[depth]), trainable=False, name="acc_v")
-
-        new_acc_m = tf.assign(acc_m, (1.0 - acc) * acc_m + acc * m)
-        new_acc_v = tf.assign(acc_v, (1.0 - acc) * acc_v + acc * v)
-
-        m = (1.0 - ub) * new_acc_m + ub * m
-        v = (1.0 - ub) * new_acc_v + ub * v
-        m.set_shape([depth])
-        v.set_shape([depth])
-
-        beta = tf.Variable(tf.constant(0.0, shape=[depth]))
-        gamma = tf.Variable(tf.constant(1.0, shape=[depth]))
-
-        return tf.nn.batch_normalization(x, m, v, beta, gamma, 1e-3)
 
 class CNN:
     # pylint: disable=too-many-instance-attributes
@@ -172,7 +138,6 @@ class CNN:
         self.tftrain_step = None
         self.mse = None
         self.tfkp = None
-        self.ub = None
         self.acc = None
         self.train_counter = 0
 
@@ -180,56 +145,54 @@ class CNN:
 
     def create_architecture(self):
         self.tfkp = tf.placeholder(tf.float32)
-        self.ub = tf.placeholder(tf.float32)
         self.acc = tf.placeholder(tf.float32)
 
         x = self.tfx = tf.placeholder(tf.float32, [None, 424, 424, 3])
 
-        x = batch_normalization(x, self.ub, self.acc)
-
-        def activation(x):
-            return tf.nn.relu(x)
-
-        x = activation(dihedral_convolution(x, 8 * 4, first=True))
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 4, first=True))
+        x = tf.nn.relu(dihedral_convolution(x))
         x = pool22(x)
-        x = activation(dihedral_convolution(x))
+        x = dihedral_batch_normalization(x, self.acc)
+        assert x.get_shape().as_list() == [None, 212, 212, 8 * 4]
+
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 8))
+        x = tf.nn.relu(dihedral_convolution(x))
         x = pool22(x)
-        x = dihedral_batch_normalization(x, self.ub, self.acc)
-        assert x.get_shape().as_list() == [None, 106, 106, 8 * 4]
+        x = dihedral_batch_normalization(x, self.acc)
+        assert x.get_shape().as_list() == [None, 106, 106, 8 * 8]
 
-        x = activation(dihedral_convolution(x, 8 * 8))
-        x = activation(dihedral_convolution(x, padding='VALID'))
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 16))
+        x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = pool22(x)
-        x = dihedral_batch_normalization(x, self.ub, self.acc)
-        assert x.get_shape().as_list() == [None, 52, 52, 8 * 8]
+        x = dihedral_batch_normalization(x, self.acc)
+        assert x.get_shape().as_list() == [None, 52, 52, 8 * 16]
 
-        x = activation(dihedral_convolution(x, 8 * 16))
-        x = activation(dihedral_convolution(x))
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 32))
+        x = tf.nn.relu(dihedral_convolution(x))
         x = pool22(x)
-        x = dihedral_batch_normalization(x, self.ub, self.acc)
-        assert x.get_shape().as_list() == [None, 26, 26, 8 * 16]
+        x = dihedral_batch_normalization(x, self.acc)
+        assert x.get_shape().as_list() == [None, 26, 26, 8 * 32]
 
-        x = activation(dihedral_convolution(x, 8 * 32))
-        x = activation(dihedral_convolution(x, padding='VALID'))
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 64))
+        x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = pool22(x)
-        x = dihedral_batch_normalization(x, self.ub, self.acc)
-        assert x.get_shape().as_list() == [None, 12, 12, 8 * 32]
+        x = dihedral_batch_normalization(x, self.acc)
+        assert x.get_shape().as_list() == [None, 12, 12, 8 * 64]
 
-        self.test = x
-
-        x = activation(dihedral_convolution(x, 8 * 64))
-        x = activation(dihedral_convolution(x))
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 128))
+        x = tf.nn.relu(dihedral_convolution(x))
         x = pool22(x)
-        x = dihedral_batch_normalization(x, self.ub, self.acc)
-        assert x.get_shape().as_list() == [None, 6, 6, 8 * 64]
+        x = dihedral_batch_normalization(x, self.acc)
+        assert x.get_shape().as_list() == [None, 6, 6, 8 * 128]
 
-        x = activation(dihedral_convolution(x, 8 * 128, padding='VALID'))
-        x = activation(dihedral_convolution(x, w=4, padding='VALID'))
-        x = dihedral_batch_normalization(x, self.ub, self.acc)
-        assert x.get_shape().as_list() == [None, 1, 1, 8 * 128]
-        x = tf.reshape(x, [-1, 8 * 128])
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 256, padding='VALID'))
+        x = tf.nn.relu(dihedral_convolution(x, w=4, padding='VALID'))
+        x = dihedral_batch_normalization(x, self.acc)
+        assert x.get_shape().as_list() == [None, 1, 1, 8 * 256]
+        x = tf.reshape(x, [-1, 8 * 256])
 
         x = dihedral_fullyconnected(x, 8 * 37)
+        self.test = x
         x = dihedral_pool(x)
 
         assert x.get_shape().as_list() == [None, 37]
@@ -276,15 +239,10 @@ class CNN:
         return xs, ys
 
     def train(self, session, xs, ys, options=None, run_metadata=None):
-        ub = max(1.0 - self.train_counter / 10000, 0.0)
-        acc = 0.0
-        if self.train_counter < 10000:
-            acc = 0.1
-        elif self.train_counter < 20000:
-            acc = 0.001
+        acc = math.exp(-self.train_counter / 5000.0)
 
         _, mse = session.run([self.tftrain_step, self.mse],
-            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 0.5, self.ub: ub, self.acc: acc},
+            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 0.5, self.acc: acc},
             options=options, run_metadata=run_metadata)
 
         self.train_counter += 1
@@ -306,4 +264,4 @@ class CNN:
 
     def predict(self, session, xs, ys):
         return session.run([self.tfp, self.mse],
-            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 1.0, self.ub: 0.0, self.acc: 0.0})
+            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 1.0, self.acc: 0.0})
