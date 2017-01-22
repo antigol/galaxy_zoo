@@ -215,11 +215,8 @@ class CNN:
         x = tf.concat(2, [x1, x2])
         x = tf.reshape(x, [-1, 8 * 192])
 
-        x = dihedral_fullyconnected(x, 8 * 256)
-        x = dihedral_fullyconnected(x, 8 * 256)
+        x = dihedral_fullyconnected(x, 8 * 512)
         x = tf.verify_tensor_all_finite(x, "NaN after FC")
-        x = dihedral_batch_normalization(x, self.acc)
-        x = tf.verify_tensor_all_finite(x, "NaN after BN")
         x = dihedral_fullyconnected(x, 8 * 37)
         self.test = x
         x = tf.verify_tensor_all_finite(x, "NaN after FC 8x37")
