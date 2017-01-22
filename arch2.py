@@ -152,8 +152,11 @@ class CNN:
         # 2 out - 2 + w = in
         # in - 2out + 2 = w
 
-        x = x[:, 84:340, 84:340, :]
-        
+        sh = tf.random_uniform([2], -4, 5, tf.int32)
+
+        x = x[:, 84+sh[0]:340+sh[0], 84+sh[1]:340+sh[1], :]
+        x.set_shape([None, 256, 256, 3])
+
         assert x.get_shape().as_list() == [None, 256, 256, 3]
         x = tf.nn.relu(dihedral_convolution(x, 8 * 4, w=5, first=True, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
