@@ -17,10 +17,12 @@ def predict_all(session, CNN, cnn, files, step=50):
         while q.qsize() < 20:
             sleep(0.2)
 
-        for _ in range(0, len(files), step):
+        for numéro in range(0, len(files), step):
             if q.qsize() < 5:
                 sleep(0.1)
             ids, xs = q.get()
+
+            print("{}/{}".format(numéro, len(files)))
 
             ps = cnn.predict(session, xs)
 

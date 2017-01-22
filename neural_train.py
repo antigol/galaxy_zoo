@@ -96,9 +96,20 @@ def main(arch_path, images_path, labels_path, output_path):
     def print_log(xs, ys):
         ps, mse = cnn.predict_mse(session, [xs[0]], [ys[0]])
 
-        for c,(i,k) in enumerate([(0,3), (3,5), (5,7), (7,9), (9,13), (13,15), (15,18), (18,25), (25,28), (28,31), (31,37)]):
+        for c,i,k in [
+            ("1:smooth/disk/star",0,3),
+            ("2:edgeon/no",3,5),
+            ("3:bar/no",5,7),
+            ("4:spiral/no",7,9),
+            ("5:bulge",9,13),
+            ("6:odd:yes/no",13,15),
+            ("7:rounded",15,18),
+            ("8:ring/lens/...",18,25),
+            ("9:bulge:rounded/boxy/no",25,28),
+            ("10:spiral:tight/med/loose",28,31),
+            ("11:spiral:1/2/3/4/+",31,37)]:
             text = " ".join(["{:.2f}/{:.2f}".format(p, y) for p,y in zip(ps[0][i:k], ys[0][i:k])])
-            f.write("class{} : {}\n".format(c, text))
+            f.write("{} : {}\n".format(c, text))
 
         f.write("RMSE={}\n".format(math.sqrt(mse)))
         f.flush()
@@ -132,7 +143,7 @@ def main(arch_path, images_path, labels_path, output_path):
             xs, ys = q.get()
             t1 = time()
 
-            if i % 100 == 0 and i != 0:
+            if i % 100 == 0 and i != 0 or i == 25:
                 print_log(xs, ys)
                 fx.flush()
 
