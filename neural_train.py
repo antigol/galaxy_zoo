@@ -94,11 +94,12 @@ def main(arch_path, images_path, labels_path, output_path):
     f.flush()
 
     def print_log(xs, ys):
-        ps, mse = cnn.predict_mse(session, xs, ys)
+        ps, mse = cnn.predict_mse(session, [xs[0]], [ys[0]])
 
-        text = " ".join(["{:.2f}/{:.2f}".format(p, y) for p,y in zip(ps[0], ys[0])])
+        for c,(i,k) in enumerate([(0,3), (3,5), (5,7), (7,9), (9,13), (13,15), (15,18), (18,25), (25,28), (28,31), (31,37)]):
+            text = " ".join(["{:.2f}/{:.2f}".format(p, y) for p,y in zip(ps[0][i:k], ys[0][i:k])])
+            f.write("class{} : {}\n".format(c, text))
 
-        f.write("{}\n".format(text))
         f.write("RMSE={}\n".format(math.sqrt(mse)))
         f.flush()
 
