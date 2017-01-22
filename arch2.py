@@ -148,45 +148,53 @@ class CNN:
         self.acc = tf.placeholder(tf.float32)
 
         x = self.tfx = tf.placeholder(tf.float32, [None, 424, 424, 3])
+        # (in-w)/2+1=out
+        # 2 out - 2 + w = in
+        # in - 2out + 2 = w
 
-        x = tf.nn.relu(dihedral_convolution(x, 8 * 4, w=6, s=2, first=True, padding='VALID'))
-        x = tf.nn.relu(dihedral_convolution(x))
+        x = x[:, 84:340, 84:340, :]
+        
+        assert x.get_shape().as_list() == [None, 256, 256, 3]
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 4, w=5, first=True, padding='VALID'))
+        x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 210, 210, 8 * 4]
+        assert x.get_shape().as_list() == [None, 250, 250, 8 * 4]
         x = tf.verify_tensor_all_finite(x, "conv 1")
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 8, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 102, 102, 8 * 8]
+        assert x.get_shape().as_list() == [None, 122, 122, 8 * 8]
         x = tf.verify_tensor_all_finite(x, "conv 2")
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 16, w=4, s=2, padding='VALID'))
-        x = tf.nn.relu(dihedral_convolution(x))
+        x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 50, 50, 8 * 16]
+        assert x.get_shape().as_list() == [None, 58, 58, 8 * 16]
         x = tf.verify_tensor_all_finite(x, "conv 3")
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 32, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 22, 22, 8 * 32]
+        assert x.get_shape().as_list() == [None, 26, 26, 8 * 32]
         x = tf.verify_tensor_all_finite(x, "conv 4")
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 64, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 8, 8, 8 * 64]
+        assert x.get_shape().as_list() == [None, 10, 10, 8 * 64]
         x = tf.verify_tensor_all_finite(x, "conv 5")
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 128, w=4, s=2, padding='VALID'))
-        x = tf.nn.relu(dihedral_convolution(x, w=3, padding='VALID'))
+        x = tf.nn.relu(dihedral_convolution(x, w=4, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
         assert x.get_shape().as_list() == [None, 1, 1, 8 * 128]
         x = tf.reshape(x, [-1, 8 * 128])
         x = tf.verify_tensor_all_finite(x, "conv 6")
 
+        x = tf.nn.dropout(x, self.tfkp)
         x = dihedral_fullyconnected(x, 8 * 256)
+        x = tf.nn.dropout(x, self.tfkp)
         x = dihedral_fullyconnected(x, 8 * 37)
         x = tf.verify_tensor_all_finite(x, "fully connected")
         self.test = x
@@ -242,7 +250,7 @@ class CNN:
 
     @staticmethod
     def batch(files, labels):
-        ids = np.random.choice(len(files), 10, replace=False)
+        ids = np.random.choice(len(files), 15, replace=False)
 
         xs = CNN.load([files[i] for i in ids])
         ys = labels[ids]
