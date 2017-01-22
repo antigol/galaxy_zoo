@@ -98,11 +98,15 @@ def dihedral_pool(x):
         return tf.div(tf.add_n(xs), 8.0)
 
 def dihedral_batch_normalization(x, acc):
-    depth = x.get_shape().as_list()[3]
+    shape = x.get_shape().as_list()
+    depth = shape[-1]
     assert depth % 8 == 0
 
     with tf.name_scope("bn_8x{}".format(depth // 8)):
-        m, v = moments(dihedral_pool(x), axes=[0, 1, 2])
+        if len(shape) == 4:
+            m, v = moments(dihedral_pool(x), axes=[0, 1, 2])
+        if len(shape) == 2:
+            m, v = moments(dihedral_pool(x), axes=[0])
 
         acc_m = tf.Variable(tf.constant(0.0, shape=[depth // 8]), trainable=False, name="acc_m")
         acc_v = tf.Variable(tf.constant(1.0, shape=[depth // 8]), trainable=False, name="acc_v")
@@ -214,11 +218,11 @@ class CNN:
 
         x = dihedral_fullyconnected(x, 8 * 256)
         x = dihedral_fullyconnected(x, 8 * 256)
+        x = dihedral_batch_normalization(x, self.acc)
         x = dihedral_fullyconnected(x, 8 * 37)
-        x = tf.verify_tensor_all_finite(x, "fully connected")
         self.test = x
         x = dihedral_pool(x)
-        x = tf.verify_tensor_all_finite(x, "dihedral_pool")
+        x = tf.verify_tensor_all_finite(x, "output")
 
         assert x.get_shape().as_list() == [None, 37]
 

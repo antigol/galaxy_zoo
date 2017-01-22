@@ -147,7 +147,7 @@ def main(arch_path, images_path, labels_path, output_path):
                 print_log(xs, ys)
                 fx.flush()
 
-            if i % 1000 == 0:
+            if i % 1000 == 0 or i == 100:
                 mse = cnn.train_timeline(session, xs, ys, output_path + '/iter/timeline_{:05}.json'.format(i))
             else:
                 mse = cnn.train(session, xs, ys)
