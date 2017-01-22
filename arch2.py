@@ -148,61 +148,55 @@ class CNN:
         self.acc = tf.placeholder(tf.float32)
 
         x = self.tfx = tf.placeholder(tf.float32, [None, 424, 424, 3])
-        # (in-w)/2+1=out
-        # 2 out - 2 + w = in
-        # in - 2out + 2 = w
 
-        sh = tf.random_uniform([2], -4, 5, tf.int32)
+        def augmentation(x):
+            x = tf.map_fn(lambda x: tf.image.random_brightness(x, max_delta=16. / 255.), x)
+            x = tf.map_fn(lambda x: tf.image.random_contrast(x, lower=0.75, upper=1.25), x)
+            return x
 
-        x = x[:, 84+sh[0]:340+sh[0], 84+sh[1]:340+sh[1], :]
-        x.set_shape([None, 256, 256, 3])
+        x = tf.cond(self.tfkp < 0.99, lambda: augmentation(x), lambda: x)
 
-        assert x.get_shape().as_list() == [None, 256, 256, 3]
-        x = tf.nn.relu(dihedral_convolution(x, 8 * 4, w=5, first=True, padding='VALID'))
-        x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
+        x = tf.nn.relu(dihedral_convolution(x, 8 * 4, w=6, s=2, first=True, padding='VALID'))
+        x = tf.nn.relu(dihedral_convolution(x))
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 250, 250, 8 * 4]
-        x = tf.verify_tensor_all_finite(x, "conv 1")
+        assert x.get_shape().as_list() == [None, 210, 210, 8 * 4]
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 8, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 122, 122, 8 * 8]
-        x = tf.verify_tensor_all_finite(x, "conv 2")
+        assert x.get_shape().as_list() == [None, 102, 102, 8 * 8]
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 16, w=4, s=2, padding='VALID'))
-        x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
+        x = tf.nn.relu(dihedral_convolution(x))
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 58, 58, 8 * 16]
-        x = tf.verify_tensor_all_finite(x, "conv 3")
+        assert x.get_shape().as_list() == [None, 50, 50, 8 * 16]
 
         x = tf.nn.relu(dihedral_convolution(x, 8 * 32, w=4, s=2, padding='VALID'))
         x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 26, 26, 8 * 32]
-        x = tf.verify_tensor_all_finite(x, "conv 4")
+        assert x.get_shape().as_list() == [None, 22, 22, 8 * 32]
 
+        x = tf.nn.dropout(x, self.tfkp)
         x = tf.nn.relu(dihedral_convolution(x, 8 * 64, w=4, s=2, padding='VALID'))
+        x = tf.nn.dropout(x, self.tfkp)
         x = tf.nn.relu(dihedral_convolution(x, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
-        assert x.get_shape().as_list() == [None, 10, 10, 8 * 64]
-        x = tf.verify_tensor_all_finite(x, "conv 5")
+        assert x.get_shape().as_list() == [None, 8, 8, 8 * 64]
 
+        x = tf.nn.dropout(x, self.tfkp)
         x = tf.nn.relu(dihedral_convolution(x, 8 * 128, w=4, s=2, padding='VALID'))
-        x = tf.nn.relu(dihedral_convolution(x, w=4, padding='VALID'))
+        x = tf.nn.dropout(x, self.tfkp)
+        x = tf.nn.relu(dihedral_convolution(x, w=3, padding='VALID'))
         x = dihedral_batch_normalization(x, self.acc)
         assert x.get_shape().as_list() == [None, 1, 1, 8 * 128]
         x = tf.reshape(x, [-1, 8 * 128])
-        x = tf.verify_tensor_all_finite(x, "conv 6")
 
         x = tf.nn.dropout(x, self.tfkp)
         x = dihedral_fullyconnected(x, 8 * 256)
         x = tf.nn.dropout(x, self.tfkp)
         x = dihedral_fullyconnected(x, 8 * 37)
-        x = tf.verify_tensor_all_finite(x, "fully connected")
         self.test = x
         x = dihedral_pool(x)
-        x = tf.verify_tensor_all_finite(x, "dihedral_pool")
 
         assert x.get_shape().as_list() == [None, 37]
 
@@ -222,7 +216,6 @@ class CNN:
 
         self.tfy = tf.placeholder(tf.float32, [None, 37])
         self.mse = tf.reduce_mean(tf.square(self.tfp - self.tfy))
-        self.mse = tf.verify_tensor_all_finite(self.mse, "mse is infinite")
 
         self.tftrain_step = tf.train.AdamOptimizer(0.001).minimize(self.mse)
 
