@@ -195,8 +195,20 @@ class CNN:
 
         assert x.get_shape().as_list() == [None, 37]
 
-        self.tfl = x
-        self.tfp = tf.nn.sigmoid(x)
+        c1 = tf.nn.softmax(x[:, 0:3])
+        c2 = tf.nn.softmax(x[:, 3:5]) * c1[:, 1:2]
+        c3 = tf.nn.softmax(x[:, 5:7]) * c2[:, 1:2]
+        c4 = tf.nn.softmax(x[:, 7:9]) * c2[:, 1:2]
+        c5 = tf.nn.softmax(x[:, 9:13]) * c2[:, 1:2]
+        c6 = tf.nn.softmax(x[:, 13:15])
+        c7 = tf.nn.softmax(x[:, 15:18]) * c1[:, 0:1]
+        c8 = tf.nn.softmax(x[:, 18:25]) * c6[:, 0:1]
+        c9 = tf.nn.softmax(x[:, 25:28]) * c2[:, 0:1]
+        c10 = tf.nn.softmax(x[:, 28:31]) * c4[:, 0:1]
+        c11 = tf.nn.softmax(x[:, 31:37]) * c4[:, 0:1]
+
+        self.tfp = tf.concat(1, [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11])
+
         self.tfy = tf.placeholder(tf.float32, [None, 37])
         self.mse = tf.reduce_mean(tf.square(self.tfp - self.tfy))
         self.mse = tf.verify_tensor_all_finite(self.mse, "mse is infinite")

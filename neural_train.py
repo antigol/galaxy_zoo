@@ -99,7 +99,7 @@ def main(arch_path, images_path, labels_path, output_path):
         text = " ".join(["{:.2f}/{:.2f}".format(p, y) for p,y in zip(ps[0], ys[0])])
 
         f.write("{}\n".format(text))
-        f.write("MSE={}\n".format(mse))
+        f.write("RMSE={}\n".format(math.sqrt(mse)))
         f.flush()
 
     def save_statistics(i):
