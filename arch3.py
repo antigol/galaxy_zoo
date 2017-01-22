@@ -152,7 +152,6 @@ class CNN:
         self.acc = tf.placeholder(tf.float32)
 
         x = self.tfx = tf.placeholder(tf.float32, [None, 424, 424, 3])
-        x = tf.verify_tensor_all_finite(x, "input")
 
         # GLOBAL VIEW
         x = tf.nn.relu(dihedral_convolution(x, 8 * 4, w=6, s=2, first=True, padding='VALID'))
@@ -185,7 +184,7 @@ class CNN:
         x = dihedral_batch_normalization(x, self.acc)
         assert x.get_shape().as_list() == [None, 1, 1, 8 * 128]
         x = tf.reshape(x, [-1, 8 * 128])
-        x = tf.verify_tensor_all_finite(x, "x1")
+        x = tf.verify_tensor_all_finite(x, "NaN in x1")
         x1 = x
 
         # CENTRAL VIEW
@@ -208,7 +207,7 @@ class CNN:
         x = dihedral_batch_normalization(x, self.acc)
         assert x.get_shape().as_list() == [None, 1, 1, 8 * 64]
         x = tf.reshape(x, [-1, 8 * 64])
-        x = tf.verify_tensor_all_finite(x, "x2")
+        x = tf.verify_tensor_all_finite(x, "NaN in x2")
         x2 = x
 
         x1 = tf.reshape(x1, [-1, 8, 128])
@@ -222,7 +221,7 @@ class CNN:
         x = dihedral_fullyconnected(x, 8 * 37)
         self.test = x
         x = dihedral_pool(x)
-        x = tf.verify_tensor_all_finite(x, "output")
+        x = tf.verify_tensor_all_finite(x, "NaN in output")
 
         assert x.get_shape().as_list() == [None, 37]
 
@@ -242,9 +241,9 @@ class CNN:
 
         self.tfy = tf.placeholder(tf.float32, [None, 37])
         self.mse = tf.reduce_mean(tf.square(self.tfp - self.tfy))
-        self.mse = tf.verify_tensor_all_finite(self.mse, "mse is infinite")
+        self.mse = tf.verify_tensor_all_finite(self.mse, "NaN in MSE")
 
-        self.tftrain_step = tf.train.AdamOptimizer(0.001).minimize(self.mse)
+        self.tftrain_step = tf.train.AdamOptimizer(0.001, epsilon=1e-6).minimize(self.mse)
 
     @staticmethod
     def prepare(images_path, labels_csv):
