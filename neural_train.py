@@ -7,9 +7,9 @@ from sys import argv
 from time import time, sleep
 import queue
 import threading
+import importlib.util
 from shutil import copy2
 import os
-import importlib.util
 import math
 
 def predict_all(session, CNN, cnn, files, labels, f, step=50):
@@ -17,13 +17,14 @@ def predict_all(session, CNN, cnn, files, labels, f, step=50):
     se_list = []
 
     def compute():
-        while q.qsize() < 20:
-            sleep(0.2)
-
         for j in range(0, len(files), step):
             t0 = time()
-            if q.qsize() < 5:
-                sleep(0.1)
+
+            rem = len(files) // step - j // step
+            if q.qsize() < min(2, rem):
+                while q.qsize() < min(20, rem):
+                    sleep(0.05)
+
             xs, ys = q.get()
             t1 = time()
 
@@ -75,7 +76,9 @@ def main(arch_path, images_path, labels_path, output_path):
     f.write("{}\n".format(argv))
     f.flush()
 
-    session = tf.Session()
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    session = tf.Session(config=config)
 
     cnn.create_architecture()
     f.write("Architecture created\n")
@@ -87,7 +90,7 @@ def main(arch_path, images_path, labels_path, output_path):
     f.write("Session ready\n")
     f.flush()
 
-    (test_files, test_labels), (train_files, train_labels) = CNN.prepare(images_path, labels_path)
+    (test_files, test_labels), (train_files, train_labels) = CNN.split_test_train(images_path, labels_path)
 
     f.write("{: <6} images into train set\n".format(len(train_files)))
     f.write("{: <6} images into test set\n".format(len(test_files)))
@@ -130,16 +133,17 @@ def main(arch_path, images_path, labels_path, output_path):
 
     # Use a Queue to generate batches and train in parallel
     n = 50000
-    q = queue.Queue(20)  # batches in the queue
+    q = queue.Queue(50)  # batches in the queue
 
     def trainer():
-        while q.qsize() < 20:
-            sleep(0.2)
-
         for i in range(n+1):
             t0 = time()
-            if q.qsize() < 5:
-                sleep(0.1)
+
+            rem = n + 1 - i
+            if q.qsize() < min(3, rem):
+                while q.qsize() < min(50, rem):
+                    sleep(0.05)
+
             xs, ys = q.get()
             t1 = time()
 
@@ -147,27 +151,39 @@ def main(arch_path, images_path, labels_path, output_path):
                 print_log(xs, ys)
                 fx.flush()
 
-            if i % 1000 == 0 or i == 100:
-                mse = cnn.train_timeline(session, xs, ys, output_path + '/iter/timeline_{:05}.json'.format(i))
+            if i == 102 or i == 1002:
+                from tensorflow.python.client import timeline
+                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
+
+                mse = cnn.train(session, xs, ys, options=run_options, run_metadata=run_metadata)
+                # google chrome : chrome://tracing/
+
+                tl = timeline.Timeline(run_metadata.step_stats)
+                ctf = tl.generate_chrome_trace_format()
+                with open(output_path + '/timeline.json', 'w') as tlf:
+                    tlf.write(ctf)
             else:
                 mse = cnn.train(session, xs, ys)
 
             fx.write('{} {:.6}\n'.format(i, math.sqrt(mse)))
 
-            if i % 1000 == 0 and i != 0 or i == 100:
+            if i % 1000 == 0 and i != 0:
                 save_statistics(i)
-
-            q.task_done()
 
             t2 = time()
             f.write('{:05d}: ({}) {: >6.3f}s+{:.3f}s {} RMSE_batch={:.3f} (MSE={:.3f})\n'.format(
                 i, q.qsize(), t1 - t0, t2 - t1, xs.shape, math.sqrt(mse), mse))
             f.flush()
 
+            q.task_done()
 
     t = threading.Thread(target=trainer)
     t.daemon = True
     t.start()
+
+    f.write(" Done\nStart feeders...")
+    f.flush()
 
     # the n+1
     xs, ys = CNN.batch(train_files, train_labels)
@@ -183,9 +199,10 @@ def main(arch_path, images_path, labels_path, output_path):
     threads = [threading.Thread(target=feeder) for _ in range(n_feeders)]
     for t in threads:
         t.start()
+    f.write("Done\n")
+    f.flush()
     for t in threads:
         t.join()
-
 
     q.join()
     session.close()
