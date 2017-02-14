@@ -12,7 +12,7 @@ from shutil import copy2
 import os
 import math
 
-def predict_all(session, CNN, cnn, files, labels, f, step=50):
+def predict_all(session, CNN, cnn, files, labels, f, step):
     q = queue.Queue(20)  # batches in the queue
     se_list = []
 
@@ -121,8 +121,8 @@ def main(arch_path, images_path, labels_path, output_path):
         save_path = saver.save(session, '{}/iter/{:05d}.data'.format(output_path, i))
         f.write('Model saved in file: {}\n'.format(save_path))
 
-        rmse_test = predict_all(session, CNN, cnn, test_files, test_labels, f, 50)
-        rmse_train = predict_all(session, CNN, cnn, train_files[:len(test_files)], train_labels[:len(test_files)], f, 50)
+        rmse_test = predict_all(session, CNN, cnn, test_files, test_labels, f, 25)
+        rmse_train = predict_all(session, CNN, cnn, train_files[:len(test_files)], train_labels[:len(test_files)], f, 25)
 
         f.write("RMSE   test    train\n")
         f.write("     {: ^8.4} {: ^8.4}\n".format(rmse_test, rmse_train))
