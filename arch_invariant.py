@@ -20,38 +20,39 @@ class CNN:
 
     def NN(self, x):
         assert x.get_shape().as_list() == [None, 424, 424, 3]
-        x = nn.relu(nn.convolution(x, 8*4, w=6, s=2, input_repr='invariant')) # 210
-        x = nn.relu(nn.convolution(x)) # 208
+        x = nn.relu(nn.convolution(x, 8*4, w=4, s=2, input_repr='invariant')) # 211
+        x = nn.relu(nn.convolution(x)) # 209
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 208, 208, 8*4]
-        x = nn.relu(nn.convolution(x, 8*8, w=6, s=2)) # 102
-        x = nn.relu(nn.convolution(x)) # 100
+        assert x.get_shape().as_list() == [None, 209, 209, 8*4]
+        x = nn.relu(nn.convolution(x, 8*8, w=5, s=2)) # 103
+        x = nn.relu(nn.convolution(x)) # 101
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 100, 100, 8*8]
-        x = nn.relu(nn.convolution(x, 8*16, w=6, s=2)) # 48
-        x = nn.relu(nn.convolution(x)) # 46
+        assert x.get_shape().as_list() == [None, 101, 101, 8*8]
+        x = nn.relu(nn.convolution(x, 8*16, w=5, s=2)) # 49
+        x = nn.relu(nn.convolution(x)) # 47
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 46, 46, 8*16]
-        x = nn.relu(nn.convolution(x, 8*32, w=4, s=2)) # 22
+        assert x.get_shape().as_list() == [None, 47, 47, 8*16]
+        x = nn.relu(nn.convolution(x, 8*32, w=5, s=2)) # 22
         x = nn.relu(nn.convolution(x)) # 20
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 20, 20, 8*32]
-        x = nn.relu(nn.convolution(x, 8*64, w=6, s=2)) # 8
-        x = nn.relu(nn.convolution(x)) # 6
+        x = nn.relu(nn.convolution(x, 8*64, w=4, s=2)) # 9
+        x = nn.relu(nn.convolution(x)) # 7
+        x = nn.relu(nn.convolution(x)) # 5
         x = nn.batch_normalization(x, self.tfacc)
         x = tf.nn.dropout(x, self.tfkp)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 6, 6, 8*64]
-        x = nn.relu(nn.convolution(x, 8*128, w=6)) # 8
+        assert x.get_shape().as_list() == [None, 5, 5, 8*64]
+        x = nn.relu(nn.convolution(x, 8*128, w=5))
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 1, 1, 8*128]

@@ -168,7 +168,7 @@ def main(arch_path, images_path, labels_path, output_path):
 
             fx.write('{} {:.6}\n'.format(i, math.sqrt(mse)))
 
-            if i % 1000 == 0 and i != 0:
+            if i % 1000 == 0 and i != 0 or i == 200:
                 save_statistics(i)
 
             t2 = time()
