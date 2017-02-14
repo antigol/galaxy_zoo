@@ -1,7 +1,38 @@
 # pylint: disable=C,R,no-member
 import tensorflow as tf
 import numpy as np
-import dihedral as nn
+import basic as nn
+
+def dihedral(x, i):
+    if len(x.shape) == 3:
+        if i & 4:
+            y = np.transpose(x, (1, 0, 2))
+        else:
+            y = x.copy()
+
+        if i&3 == 0:
+            return y
+        if i&3 == 1:
+            return y[:, ::-1]
+        if i&3 == 2:
+            return y[::-1, :]
+        if i&3 == 3:
+            return y[::-1, ::-1]
+
+    if len(x.shape) == 4:
+        if i & 4:
+            y = np.transpose(x, (0, 2, 1, 3))
+        else:
+            y = x.copy()
+
+        if i&3 == 0:
+            return y
+        if i&3 == 1:
+            return y[:, :, ::-1]
+        if i&3 == 2:
+            return y[:, ::-1, :]
+        if i&3 == 3:
+            return y[:, ::-1, ::-1]
 
 class CNN:
     # pylint: disable=too-many-instance-attributes
@@ -20,7 +51,7 @@ class CNN:
 
     def NN(self, x):
         assert x.get_shape().as_list() == [None, 424, 424, 3]
-        x = nn.relu(nn.convolution(x, 8*4, w=4, s=2, input_repr='invariant')) # 211
+        x = nn.relu(nn.convolution(x, 8*4, w=4, s=2)) # 211
         x = nn.relu(nn.convolution(x)) # 209
         x = nn.batch_normalization(x, self.tfacc)
 
@@ -66,7 +97,7 @@ class CNN:
         x = nn.batch_normalization(x, self.tfacc)
 
         self.test = x
-        x = nn.fullyconnected(x, 37, output_repr='invariant')
+        x = nn.fullyconnected(x, 37)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 37]
@@ -140,7 +171,7 @@ class CNN:
         for i in range(len(xs)):
             s = np.random.uniform(0.8, 1.2)
             u = np.random.uniform(-0.1, 0.1)
-            xs[i] = xs[i] * s + u
+            xs[i] = dihedral(xs[i], np.random.randint(8)) * s + u
 
         return xs, ys
 
