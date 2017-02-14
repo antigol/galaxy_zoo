@@ -141,7 +141,7 @@ class CNN:
         kp = 0.5 + 0.5 * 0.5 ** (self.train_counter / 2000.0)
 
         _, mse = session.run([self.tftrain_step, self.mse],
-            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: kp, self.acc: acc},
+            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: kp, self.tfacc: acc},
             options=options, run_metadata=run_metadata)
 
         self.train_counter += 1
@@ -149,8 +149,8 @@ class CNN:
 
     def predict(self, session, xs):
         return session.run(self.tfp,
-            feed_dict={self.tfx: xs, self.tfkp: 1.0, self.acc: 0.0})
+            feed_dict={self.tfx: xs, self.tfkp: 1.0, self.tfacc: 0.0})
 
     def predict_mse(self, session, xs, ys):
         return session.run([self.tfp, self.mse],
-            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 1.0, self.acc: 0.0})
+            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 1.0, self.tfacc: 0.0})
