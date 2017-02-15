@@ -84,7 +84,7 @@ def main(arch_path, images_path, labels_path, output_path):
     f.write("Architecture created\n")
     f.flush()
 
-    saver = tf.train.Saver(max_to_keep=0)
+    saver = tf.train.Saver(max_to_keep=10)
     session.run(tf.global_variables_initializer())
 
     f.write("Session ready\n")
