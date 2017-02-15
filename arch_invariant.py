@@ -41,13 +41,11 @@ class CNN:
         x = nn.relu(nn.convolution(x, 8*32, w=5, s=2)) # 22
         x = nn.relu(nn.convolution(x)) # 20
         x = nn.batch_normalization(x, self.tfacc)
-        x = tf.nn.dropout(x, self.tfkp)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 20, 20, 8*32]
         x = nn.relu(nn.convolution(x, 8*64, w=4, s=2)) # 9
         x = nn.batch_normalization(x, self.tfacc)
-        x = tf.nn.dropout(x, self.tfkp)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 9, 9, 8*64]
