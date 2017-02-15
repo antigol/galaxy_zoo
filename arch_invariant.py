@@ -41,24 +41,24 @@ class CNN:
         x = nn.relu(nn.convolution(x, 8*32, w=5, s=2)) # 22
         x = nn.relu(nn.convolution(x)) # 20
         x = nn.batch_normalization(x, self.tfacc)
+        x = tf.nn.dropout(x, self.tfkp)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 20, 20, 8*32]
         x = nn.relu(nn.convolution(x, 8*64, w=4, s=2)) # 9
-        x = nn.relu(nn.convolution(x)) # 7
-        x = nn.relu(nn.convolution(x)) # 5
         x = nn.batch_normalization(x, self.tfacc)
         x = tf.nn.dropout(x, self.tfkp)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 5, 5, 8*64]
-        x = nn.relu(nn.convolution(x, 8*128, w=5))
+        assert x.get_shape().as_list() == [None, 9, 9, 8*64]
+        x = nn.relu(nn.convolution(x, 128, output_repr='invariant')) # 7
+        x = nn.relu(nn.convolution(x, 8*256, w=7, input_repr='invariant'))
+        x = tf.nn.dropout(x, self.tfkp)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 1, 1, 8*128]
+        assert x.get_shape().as_list() == [None, 1, 1, 8*256]
         x = tf.reshape(x, [-1, x.get_shape().as_list()[-1]])
 
-        x = tf.nn.dropout(x, self.tfkp)
         x = nn.relu(nn.fullyconnected(x, 8*256))
         x = tf.nn.dropout(x, self.tfkp)
 
@@ -145,11 +145,10 @@ class CNN:
         return xs, ys
 
     def train(self, session, xs, ys, options=None, run_metadata=None):
-        acc = 0.6 ** (self.train_counter / 1000.0)
-        kp = 0.5 + 0.5 * 0.5 ** (self.train_counter / 2000.0)
+        acc = 0.8 ** (self.train_counter / 1000.0)
 
         _, mse = session.run([self.tftrain_step, self.mse],
-            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: kp, self.tfacc: acc},
+            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 0.5, self.tfacc: acc},
             options=options, run_metadata=run_metadata)
 
         self.train_counter += 1
