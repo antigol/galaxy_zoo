@@ -18,7 +18,8 @@ def fullyconnected(x, f_out=None):
     with tf.name_scope("fc_{}_{}".format(f_in, f_out)):
         W0 = tf.nn.l2_normalize(tf.random_normal([f_in, f_out]), [0])
         W = tf.Variable(W0, name="W")
-        return tf.matmul(x, W)
+        b = tf.Variable(tf.constant(0.0, shape=[f_out]), name="b")
+        return tf.matmul(x, W) + b
 
 def convolution(x, f_out=None, s=1, w=3, padding='VALID'):
     f_in = x.get_shape().as_list()[3]
@@ -29,19 +30,25 @@ def convolution(x, f_out=None, s=1, w=3, padding='VALID'):
     with tf.name_scope("conv_{}_{}".format(f_in, f_out)):
         F0 = tf.nn.l2_normalize(tf.random_normal([w, w, f_in, f_out]), [0, 1, 2])
         F = tf.Variable(F0, name="F")
-        return tf.nn.conv2d(x, F, [1, s, s, 1], padding)
+        b = tf.Variable(tf.constant(0.0, shape=[f_out]), name="b")
+        return tf.nn.conv2d(x, F, [1, s, s, 1], padding) + b
 
 
 def relu(x):
+    """ReLU compatible with normalization propagation"""
     return (tf.nn.relu(x) - 0.3989422804014327) * 1.712858550449663
 
 
 def max_pool(x):
+    """max pool compatible with normalization propagation"""
     x = tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-    return (x - 1.1) / 1.2
+    return (x - 1.3) / 1.3
 
 
 def batch_normalization(x, acc):
+    """Perform the amortized batch normalization, the mean and variance
+    are accumulated according to the parameter acc.
+    Typically acc = exp(- training steps / some number)."""
     shape = x.get_shape().as_list()
     f_in = shape[-1]
 
