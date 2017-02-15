@@ -1,0 +1,4 @@
+
+a : baseline et invariant
+
+b : [a] 4 dropout -> 2 dropout
