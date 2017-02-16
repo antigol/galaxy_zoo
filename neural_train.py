@@ -54,7 +54,7 @@ def predict_all(session, CNN, cnn, files, labels, f, step):
     return np.sqrt(np.sum(se_list) / len(files))
 
 
-def main(arch_path, images_path, labels_path, output_path):
+def main(arch_path, images_path, labels_path, output_path, n_iter):
     time_total_0 = time()
     os.makedirs(output_path)
     os.makedirs(output_path + '/iter')
@@ -65,7 +65,7 @@ def main(arch_path, images_path, labels_path, output_path):
     fm.write("# iteration rmse_test rmse_train\n")
     fx.write("# iteration rmse_batch\n")
 
-    copy2(arch_path, output_path)
+    copy2(arch_path, output_path + '/arch.py')
     spec = importlib.util.spec_from_file_location("module.name", arch_path)
     neural = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(neural)
@@ -132,14 +132,13 @@ def main(arch_path, images_path, labels_path, output_path):
         fm.flush()
 
     # Use a Queue to generate batches and train in parallel
-    n = 50000
     q = queue.Queue(50)  # batches in the queue
 
     def trainer():
-        for i in range(n+1):
+        for i in range(n_iter+1):
             t0 = time()
 
-            rem = n + 1 - i
+            rem = n_iter + 1 - i
             if q.qsize() < min(3, rem):
                 while q.qsize() < min(50, rem):
                     sleep(0.05)
@@ -190,9 +189,9 @@ def main(arch_path, images_path, labels_path, output_path):
     q.put((xs, ys))
 
     n_feeders = 2
-    assert n % n_feeders == 0
+    assert n_iter % n_feeders == 0
     def feeder():
-        for _ in range(n // n_feeders):
+        for _ in range(n_iter // n_feeders):
             xs, ys = CNN.batch(train_files, train_labels)
             q.put((xs, ys))
 
@@ -216,4 +215,4 @@ def main(arch_path, images_path, labels_path, output_path):
 
 
 if __name__ == '__main__':
-    main(argv[1], argv[2], argv[3], argv[4])
+    main(argv[1], argv[2], argv[3], argv[4], int(argv[5]))
