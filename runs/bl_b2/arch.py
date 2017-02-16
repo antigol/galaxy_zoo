@@ -1,7 +1,38 @@
 # pylint: disable=C,R,no-member
 import tensorflow as tf
 import numpy as np
-import dihedral as nn
+import basic as nn
+
+def dihedral(x, i):
+    if len(x.shape) == 3:
+        if i & 4:
+            y = np.transpose(x, (1, 0, 2))
+        else:
+            y = x.copy()
+
+        if i&3 == 0:
+            return y
+        if i&3 == 1:
+            return y[:, ::-1]
+        if i&3 == 2:
+            return y[::-1, :]
+        if i&3 == 3:
+            return y[::-1, ::-1]
+
+    if len(x.shape) == 4:
+        if i & 4:
+            y = np.transpose(x, (0, 2, 1, 3))
+        else:
+            y = x.copy()
+
+        if i&3 == 0:
+            return y
+        if i&3 == 1:
+            return y[:, :, ::-1]
+        if i&3 == 2:
+            return y[:, ::-1, :]
+        if i&3 == 3:
+            return y[:, ::-1, ::-1]
 
 class CNN:
     # pylint: disable=too-many-instance-attributes
@@ -20,53 +51,51 @@ class CNN:
 
     def NN(self, x):
         assert x.get_shape().as_list() == [None, 424, 424, 3]
-        x = nn.relu(nn.convolution(x, 8*4, w=4, s=2, input_repr='invariant')) # 211
+        x = nn.relu(nn.convolution(x, 16, w=4, s=2)) # 211
         x = nn.relu(nn.convolution(x)) # 209
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 209, 209, 8*4]
-        x = nn.relu(nn.convolution(x, 8*8, w=5, s=2)) # 103
+        assert x.get_shape().as_list() == [None, 209, 209, 16]
+        x = nn.relu(nn.convolution(x, 32, w=5, s=2)) # 103
         x = nn.relu(nn.convolution(x)) # 101
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 101, 101, 8*8]
-        x = nn.relu(nn.convolution(x, 8*16, w=5, s=2)) # 49
+        assert x.get_shape().as_list() == [None, 101, 101, 32]
+        x = nn.relu(nn.convolution(x, 64, w=5, s=2)) # 49
         x = nn.relu(nn.convolution(x)) # 47
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 47, 47, 8*16]
-        x = nn.relu(nn.convolution(x, 8*32, w=5, s=2)) # 22
+        assert x.get_shape().as_list() == [None, 47, 47, 64]
+        x = nn.relu(nn.convolution(x, 128, w=5, s=2)) # 22
         x = nn.relu(nn.convolution(x)) # 20
         x = nn.batch_normalization(x, self.tfacc)
-        x = tf.nn.dropout(x, self.tfkp)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 20, 20, 8*32]
-        x = nn.relu(nn.convolution(x, 8*64, w=4, s=2)) # 9
+        assert x.get_shape().as_list() == [None, 20, 20, 128]
+        x = nn.relu(nn.convolution(x, 256, w=4, s=2)) # 9
         x = nn.batch_normalization(x, self.tfacc)
+
+        ########################################################################
+        assert x.get_shape().as_list() == [None, 9, 9, 256]
+        x = nn.relu(nn.convolution(x, 128)) # 7
+        x = nn.relu(nn.convolution(x, 1024, w=7))
         x = tf.nn.dropout(x, self.tfkp)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 9, 9, 8*64]
-        x = nn.relu(nn.convolution(x, 128, output_repr='invariant')) # 7
-        x = nn.relu(nn.convolution(x, 8*256, w=7, input_repr='invariant'))
-        x = tf.nn.dropout(x, self.tfkp)
-
-        ########################################################################
-        assert x.get_shape().as_list() == [None, 1, 1, 8*256]
+        assert x.get_shape().as_list() == [None, 1, 1, 1024]
         x = tf.reshape(x, [-1, x.get_shape().as_list()[-1]])
 
-        x = nn.relu(nn.fullyconnected(x, 8*256))
+        x = nn.relu(nn.fullyconnected(x, 1024))
         x = tf.nn.dropout(x, self.tfkp)
 
-        x = nn.relu(nn.fullyconnected(x, 8*256))
+        x = nn.relu(nn.fullyconnected(x, 1024))
         x = nn.batch_normalization(x, self.tfacc)
 
         self.test = x
-        x = nn.fullyconnected(x, 37, output_repr='invariant')
+        x = nn.fullyconnected(x, 37)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 37]
@@ -140,7 +169,7 @@ class CNN:
         for i in range(len(xs)):
             s = np.random.uniform(0.8, 1.2)
             u = np.random.uniform(-0.1, 0.1)
-            xs[i] = xs[i] * s + u
+            xs[i] = dihedral(xs[i], np.random.randint(8)) * s + u
 
         return xs, ys
 
