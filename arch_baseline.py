@@ -119,10 +119,10 @@ class CNN:
 
 
     def create_architecture(self):
-        self.tfkp = tf.placeholder_with_default(tf.constant(1.0, tf.float32), [])
-        self.tfacc = tf.placeholder_with_default(tf.constant(0.0, tf.float32), [])
+        self.tfkp = tf.placeholder_with_default(tf.constant(1.0, tf.float32), [], name="kp")
+        self.tfacc = tf.placeholder_with_default(tf.constant(0.0, tf.float32), [], name="acc")
 
-        x = self.tfx = tf.placeholder(tf.float32, [None, 424, 424, 3])
+        x = self.tfx = tf.placeholder(tf.float32, [None, 424, 424, 3], name="input")
         tf.summary.image("input", x, 3)
 
         with tf.name_scope("nn"):
@@ -131,9 +131,10 @@ class CNN:
         with tf.name_scope("cost"):
             self.tfy = tf.placeholder(tf.float32, [None, 37])
             self.mse = tf.reduce_mean(tf.square(self.tfp - self.tfy))
+            tf.summary.scalar("rmse", tf.sqrt(self.mse))
 
         with tf.name_scope("train"):
-            self.tftrain_step = tf.train.AdamOptimizer(0.001, epsilon=1e-6).minimize(self.mse)
+            self.tftrain_step = tf.train.AdamOptimizer(1e-4, epsilon=1e-6).minimize(self.mse)
 
     @staticmethod
     def split_test_train(images_path, labels_csv):
