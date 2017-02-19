@@ -1,4 +1,5 @@
 # pylint: disable=C,R,no-member
+import math
 import tensorflow as tf
 import numpy as np
 import basic as nn
@@ -48,54 +49,56 @@ class CNN:
         self.train_counter = 0
 
         self.test = None
+        self.embedding_input = None
 
     def NN(self, x):
         assert x.get_shape().as_list() == [None, 424, 424, 3]
-        x = nn.relu(nn.convolution(x, 16, w=4, s=2)) # 211
-        x = nn.relu(nn.convolution(x)) # 209
+        x = nn.convolution(x, 16, w=4, s=2) # 211
+        x = nn.convolution(x) # 209
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 209, 209, 16]
-        x = nn.relu(nn.convolution(x, 32, w=5, s=2)) # 103
-        x = nn.relu(nn.convolution(x)) # 101
+        x = nn.convolution(x, 32, w=5, s=2) # 103
+        x = nn.convolution(x) # 101
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 101, 101, 32]
-        x = nn.relu(nn.convolution(x, 64, w=5, s=2)) # 49
-        x = nn.relu(nn.convolution(x)) # 47
+        x = nn.convolution(x, 64, w=5, s=2) # 49
+        x = nn.convolution(x) # 47
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 47, 47, 64]
-        x = nn.relu(nn.convolution(x, 128, w=5, s=2)) # 22
-        x = nn.relu(nn.convolution(x)) # 20
+        x = nn.convolution(x, 128, w=5, s=2) # 22
+        x = nn.convolution(x) # 20
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 20, 20, 128]
-        x = nn.relu(nn.convolution(x, 256, w=4, s=2)) # 9
+        x = nn.convolution(x, 256, w=4, s=2) # 9
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 9, 9, 256]
-        x = nn.relu(nn.convolution(x, 128)) # 7
-        x = nn.relu(nn.convolution(x, 1024, w=7))
+        x = nn.convolution(x, 128) # 7
+        x = nn.convolution(x, 1024, w=7)
         x = tf.nn.dropout(x, self.tfkp)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 1, 1, 1024]
         x = tf.reshape(x, [-1, x.get_shape().as_list()[-1]])
+        self.embedding_input = x
 
-        x = nn.relu(nn.fullyconnected(x, 1024))
+        x = nn.fullyconnected(x, 1024)
         x = tf.nn.dropout(x, self.tfkp)
 
-        x = nn.relu(nn.fullyconnected(x, 1024))
+        x = nn.fullyconnected(x, 1024)
         x = nn.batch_normalization(x, self.tfacc)
 
         self.test = x
-        x = nn.fullyconnected(x, 37)
+        x = nn.fullyconnected(x, 37, activation=None)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 37]
@@ -112,7 +115,7 @@ class CNN:
         c10 = tf.nn.softmax(x[:, 28:31]) * c4[:, 0:1]
         c11 = tf.nn.softmax(x[:, 31:37]) * c4[:, 0:1]
 
-        return tf.concat(1, [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11])
+        return tf.concat([c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11], 1)
 
 
     def create_architecture(self):
@@ -120,13 +123,17 @@ class CNN:
         self.tfacc = tf.placeholder_with_default(tf.constant(0.0, tf.float32), [])
 
         x = self.tfx = tf.placeholder(tf.float32, [None, 424, 424, 3])
+        tf.summary.image("input", x, 3)
 
-        self.tfp = self.NN(x)
+        with tf.name_scope("nn"):
+            self.tfp = self.NN(x)
 
-        self.tfy = tf.placeholder(tf.float32, [None, 37])
-        self.mse = tf.reduce_mean(tf.square(self.tfp - self.tfy))
+        with tf.name_scope("cost"):
+            self.tfy = tf.placeholder(tf.float32, [None, 37])
+            self.mse = tf.reduce_mean(tf.square(self.tfp - self.tfy))
 
-        self.tftrain_step = tf.train.AdamOptimizer(0.001, epsilon=1e-6).minimize(self.mse)
+        with tf.name_scope("train"):
+            self.tftrain_step = tf.train.AdamOptimizer(0.001, epsilon=1e-6).minimize(self.mse)
 
     @staticmethod
     def split_test_train(images_path, labels_csv):
@@ -173,15 +180,18 @@ class CNN:
 
         return xs, ys
 
-    def train(self, session, xs, ys, options=None, run_metadata=None):
+    def train(self, session, xs, ys, options=None, run_metadata=None, tensors=None):
+        if tensors is None:
+            tensors = []
+
         acc = 0.8 ** (self.train_counter / 1000.0)
 
-        _, mse = session.run([self.tftrain_step, self.mse],
+        output = session.run([self.tftrain_step, self.mse] + tensors,
             feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 0.5, self.tfacc: acc},
             options=options, run_metadata=run_metadata)
 
         self.train_counter += 1
-        return mse
+        return math.sqrt(output[1]), output[2:]
 
     def predict(self, session, xs):
         return session.run(self.tfp,
