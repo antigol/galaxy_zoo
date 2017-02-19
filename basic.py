@@ -2,7 +2,7 @@
 """This module defines basic layers for tensorflow
 Two principles are repected:
     - after initialisation, the normalisation in maintained
-    - the wieghts are normalized and the bias are add to normiled data"""
+"""
 import math
 import tensorflow as tf
 
@@ -28,9 +28,9 @@ def fullyconnected(x, f_out=None, activation=relu, name='fc'):
 
     with tf.name_scope("{}-{}-{}".format(name, f_in, f_out)):
         W0 = tf.random_normal([f_in, f_out])
+        W0 = W0 / math.sqrt(f_in)
         W = tf.Variable(W0, name="W")
         tf.summary.histogram("weights", W)
-        W = W / math.sqrt(f_in)
         x = tf.matmul(x, W)
 
         b = tf.Variable(tf.constant(0.0, shape=[f_out]), name="b")
@@ -50,9 +50,9 @@ def convolution(x, f_out=None, s=1, w=3, padding='VALID', activation=relu, name=
 
     with tf.name_scope("{}-{}-{}".format(name, f_in, f_out)):
         F0 = tf.random_normal([w, w, f_in, f_out])
+        F0 = F0 / math.sqrt(w * w * f_in)
         F = tf.Variable(F0, name="F")
         tf.summary.histogram("filter", F)
-        F = F / math.sqrt(w * w * f_in)
         x = tf.nn.conv2d(x, F, [1, s, s, 1], padding)
 
         b = tf.Variable(tf.constant(0.0, shape=[f_out]), name="b")
