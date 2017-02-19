@@ -288,7 +288,7 @@ def main(arch_path, images_path, labels_path, output_path, n_iter):
     f.flush()
 
     # Use a Queue to generate batches and train in parallel
-    q = queue.Queue(50)  # batches in the queue
+    q = queue.Queue(20)  # batches in the queue
 
     def trainer():
         for i in range(resume_iter, resume_iter + n_iter + 1):
@@ -296,7 +296,7 @@ def main(arch_path, images_path, labels_path, output_path, n_iter):
 
             rem = resume_iter + n_iter + 1 - i
             if q.qsize() < min(3, rem):
-                while q.qsize() < min(50, rem):
+                while q.qsize() < min(20, rem):
                     sleep(0.05)
 
             xs, ys = q.get()
@@ -377,7 +377,6 @@ def main(arch_path, images_path, labels_path, output_path, n_iter):
     f.write("total time : {}h {}min".format(t // 3600, (t % 3600) // 60))
 
     f.close()
-    fs.close()
     fm.close()
     fx.close()
 
