@@ -2,7 +2,8 @@
 import math
 import tensorflow as tf
 import numpy as np
-import basic as nn
+import layers_normal as nn
+
 
 def dihedral(x, i):
     if len(x.shape) == 3:
@@ -35,55 +36,70 @@ def dihedral(x, i):
         if i&3 == 3:
             return y[:, ::-1, ::-1]
 
+def summary_images(x, name):
+    for i in range(min(4, x.get_shape().as_list()[3])):
+        tf.summary.image("{}-{}".format(name, i), x[:, :, :, i:i+1])
+
 class CNN:
     # pylint: disable=too-many-instance-attributes
 
     def __init__(self):
         self.tfx = None
-        self.tfp = None
         self.tfy = None
-        self.tftrain_step = None
+        self.tfp = None
         self.mse = None
+        self.tftrain_step = None
         self.tfkp = None
         self.tfacc = None
         self.train_counter = 0
-
         self.test = None
         self.embedding_input = None
 
+
     def NN(self, x):
         assert x.get_shape().as_list() == [None, 424, 424, 3]
-        x = nn.convolution(x, 16, w=4, s=2) # 211
-        x = nn.convolution(x) # 209
+        summary_images(x, "layer0")
+        x = nn.convolution(x, 16, w=6, s=2) # 210
+        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.convolution(x) # 208
+        summary_images(x, "layer2")
+        x = nn.max_pool(x)
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 209, 209, 16]
-        x = nn.convolution(x, 32, w=5, s=2) # 103
-        x = nn.convolution(x) # 101
+        assert x.get_shape().as_list() == [None, 104, 104, 16]
+        x = nn.convolution(x, 32) # 102
+        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.convolution(x) # 100
+        summary_images(x, "layer4")
+        x = nn.max_pool(x)
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 101, 101, 32]
-        x = nn.convolution(x, 64, w=5, s=2) # 49
-        x = nn.convolution(x) # 47
+        assert x.get_shape().as_list() == [None, 50, 50, 32]
+        x = nn.convolution(x, 64) # 48
+        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.convolution(x) # 46
+        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.convolution(x) # 44
+        summary_images(x, "layer6")
+        x = nn.max_pool(x)
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 47, 47, 64]
-        x = nn.convolution(x, 128, w=5, s=2) # 22
-        x = nn.convolution(x) # 20
+        assert x.get_shape().as_list() == [None, 22, 22, 64]
+        x = nn.convolution(x, 128) # 20
+        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.convolution(x) # 18
+        x = nn.max_pool(x)
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 20, 20, 128]
-        x = nn.convolution(x, 256, w=4, s=2) # 9
+        assert x.get_shape().as_list() == [None, 9, 9, 128]
+        x = nn.convolution(x, 256) # 7
         x = nn.batch_normalization(x, self.tfacc)
-
-        ########################################################################
-        assert x.get_shape().as_list() == [None, 9, 9, 256]
-        x = nn.convolution(x, 128) # 7
         x = nn.convolution(x, 1024, w=7)
+        x = nn.batch_normalization(x, self.tfacc)
         x = tf.nn.dropout(x, self.tfkp)
 
         ########################################################################
@@ -92,10 +108,12 @@ class CNN:
         self.embedding_input = x
 
         x = nn.fullyconnected(x, 1024)
+        x = nn.batch_normalization(x, self.tfacc)
         x = tf.nn.dropout(x, self.tfkp)
 
         x = nn.fullyconnected(x, 1024)
         x = nn.batch_normalization(x, self.tfacc)
+        x = tf.nn.dropout(x, self.tfkp)
 
         self.test = x
         x = nn.fullyconnected(x, 37, activation=None)
@@ -119,11 +137,10 @@ class CNN:
 
 
     def create_architecture(self):
-        self.tfkp = tf.placeholder_with_default(tf.constant(1.0, tf.float32), [])
-        self.tfacc = tf.placeholder_with_default(tf.constant(0.0, tf.float32), [])
+        self.tfkp = tf.placeholder_with_default(tf.constant(1.0, tf.float32), [], name="kp")
+        self.tfacc = tf.placeholder_with_default(tf.constant(0.0, tf.float32), [], name="acc")
 
         x = self.tfx = tf.placeholder(tf.float32, [None, 424, 424, 3])
-        tf.summary.image("input", x, 3)
 
         with tf.name_scope("nn"):
             self.tfp = self.NN(x)
@@ -133,7 +150,7 @@ class CNN:
             self.mse = tf.reduce_mean(tf.square(self.tfp - self.tfy))
 
         with tf.name_scope("train"):
-            self.tftrain_step = tf.train.AdamOptimizer(0.001, epsilon=1e-6).minimize(self.mse)
+            self.tftrain_step = tf.train.AdamOptimizer(1e-4).minimize(self.mse)
 
     @staticmethod
     def split_test_train(images_path, labels_csv):
@@ -184,10 +201,11 @@ class CNN:
         if tensors is None:
             tensors = []
 
-        acc = 0.8 ** (self.train_counter / 1000.0)
+        acc = 0.6 ** (self.train_counter / 1000.0)
+        kp = 0.5 + 0.5 * 0.5 ** (self.train_counter / 2000.0)
 
         output = session.run([self.tftrain_step, self.mse] + tensors,
-            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 0.5, self.tfacc: acc},
+            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: kp, self.tfacc: acc},
             options=options, run_metadata=run_metadata)
 
         self.train_counter += 1
@@ -195,8 +213,8 @@ class CNN:
 
     def predict(self, session, xs):
         return session.run(self.tfp,
-            feed_dict={self.tfx: xs, self.tfkp: 1.0, self.tfacc: 0.0})
+            feed_dict={self.tfx: xs})
 
     def predict_mse(self, session, xs, ys):
         return session.run([self.tfp, self.mse],
-            feed_dict={self.tfx: xs, self.tfy: ys, self.tfkp: 1.0, self.tfacc: 0.0})
+            feed_dict={self.tfx: xs, self.tfy: ys})
