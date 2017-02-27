@@ -164,7 +164,7 @@ class CNN:
 
         files = [images_path + '/' + f for f in sorted(os.listdir(images_path))]
 
-        n = 2000 # for the test set
+        n = 3000 # for the test set
         return (files[:n], labels[:n]), (files[n:], labels[n:])
 
     @staticmethod
