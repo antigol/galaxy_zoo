@@ -2,7 +2,7 @@
 """This module defines equivariant layers for tensorflow under the dihedral group
 Two principles are repected:
     - after initialisation, the normalisation in maintained
-    - the wieghts are normalized and the bias are add to normiled data"""
+"""
 import math
 import tensorflow as tf
 import numpy as np
@@ -48,9 +48,9 @@ def fullyconnected(x, f_out=None, output_repr='regular', activation=relu, name='
 
         with tf.name_scope("{}-8x{}-8x{}".format(name, f_in // 8, f_out // 8)):
             W0 = tf.random_normal([f_in, f_out // 8])
+            W0 = W0 / math.sqrt(f_in)
             W = tf.Variable(W0, name="W")
             tf.summary.histogram("weights", W)
-            W = W / math.sqrt(f_in)
             W = tf.split(W, 8, 0)
 
             mt = np.array([
@@ -82,9 +82,9 @@ def fullyconnected(x, f_out=None, output_repr='regular', activation=relu, name='
     if output_repr == 'invariant':
         with tf.name_scope("{}-8x{}-{}".format(name, f_in // 8, f_out)):
             W0 = tf.random_normal([f_in // 8, f_out])
+            W0 = W0 / math.sqrt(f_in)
             W = tf.Variable(W0, name="W")
             tf.summary.histogram("weights", W)
-            W = W / math.sqrt(f_in)
             W = tf.tile(W, [8, 1])
             x = tf.matmul(x, W)
 
@@ -112,12 +112,12 @@ def convolution(x, f_out=None, s=1, w=3,
     # pylint: disable=C0111
     def filters(d_in, d_out, n_mul=None):
         F0 = tf.random_normal([w, w, d_in, d_out])
-        F = tf.Variable(F0, name="F")
-        tf.summary.histogram("filter", F)
-
         if n_mul is None:
             n_mul = w * w * d_in
-        F = F / math.sqrt(n_mul)
+        F0 = F0 / math.sqrt(n_mul)
+
+        F = tf.Variable(F0, name="F")
+        tf.summary.histogram("filter", F)
 
         if w > 1:
             Fs = [None] * 8

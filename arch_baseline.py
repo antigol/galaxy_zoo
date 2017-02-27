@@ -140,7 +140,8 @@ class CNN:
         self.tfkp = tf.placeholder_with_default(tf.constant(1.0, tf.float32), [], name="kp")
         self.tfacc = tf.placeholder_with_default(tf.constant(0.0, tf.float32), [], name="acc")
 
-        x = self.tfx = tf.placeholder(tf.float32, [None, 424, 424, 3])
+        x = self.tfx = tf.placeholder(tf.float32, [None, 424, 424, 3], name="input")
+        tf.summary.image("input", x, 3)
 
         with tf.name_scope("nn"):
             self.tfp = self.NN(x)
