@@ -161,17 +161,17 @@ def main(arch_path, images_path, labels_path, output_path, n_iter):
     f.write(" Done\nEmbedding...")
     f.flush()
 
-    embedding_amout = 1000
+    embedding_amount = 1000
     # Make sprite and labels.
     sprite_path = output_path + '/../sprite.png'
     if not os.path.isfile(sprite_path):
         f.write('\n resize...')
         f.flush()
-        images = np.zeros((embedding_amout, 96, 96, 3), np.float32)
-        for i in range(0, embedding_amout, 100):
+        images = np.zeros((embedding_amount, 96, 96, 3), np.float32)
+        for i in range(0, embedding_amount, 100):
             images[i:i + 100] = ndimage.zoom(CNN.load(files_test[i:i+100]), (1, 96/424, 96/424, 1))
         #images = ndimage.zoom(CNN.load(files_test[:embedding_amout]), (1, 96/424, 96/424, 1))
-        assert(images.shape == (embedding_amout, 96, 96, 3))
+        assert(images.shape == (embedding_amount, 96, 96, 3))
         f.write(' Done\n sprite...')
         f.flush()
         sprite = images_to_sprite(images)
@@ -183,14 +183,15 @@ def main(arch_path, images_path, labels_path, output_path, n_iter):
     if not os.path.isfile(tsv_label_path):
         metadata_file = open(tsv_label_path, 'w')
         content = open(labels_path, 'r').read()
-        content = '\n'.join(content.replace(',', '\t').split('\n')[:embedding_amout + 1])
+        content = '\n'.join(content.replace(',', '\t').split('\n')[:embedding_amount + 1])
         metadata_file.write(content)
         metadata_file.close()
 
     embedding_size = np.prod(cnn.embedding_input.get_shape().as_list()[1:])
-    embedding = tf.Variable(tf.zeros([embedding_amout, embedding_size]), name="test_embedding")
+    embedding = tf.Variable(tf.zeros([embedding_amount, embedding_size]), name="test_embedding")
     embedding_placeholder = tf.placeholder(tf.float32, embedding.get_shape())
     embedding_assignment = embedding.assign(embedding_placeholder)
+    embedding_saver = tf.train.Saver([embedding])
 
     embedding_input_flatten = tf.reshape(cnn.embedding_input, [-1, embedding_size])
 
@@ -253,15 +254,14 @@ def main(arch_path, images_path, labels_path, output_path, n_iter):
 
     def save_statistics(i):
         if (i // 1000) % 3 == 1:
-            data = np.zeros((embedding_amout, embedding_size))
-            for j in range(0, embedding_amout, 100):
-                f.write('{}/{}\n'.format(j, embedding_amout))
+            data = np.zeros((embedding_amount, embedding_size), np.float32)
+            for j in range(0, embedding_amount, 100):
+                f.write('{}/{}\n'.format(j, embedding_amount))
                 f.flush()
                 data[j: j+100] = session.run(embedding_input_flatten, feed_dict={ cnn.tfx: CNN.load(files_test[j: j+100]) })
             session.run(embedding_assignment, feed_dict={ embedding_placeholder: data })
 
-            save_path = saver.save(session, '{}/tensorboard/model.ckpt'.format(output_path), i)
-            f.write('Model saved in file: {}\n'.format(save_path))
+            embedding_saver.save(session, '{}/tensorboard/model.ckpt'.format(output_path), i)
 
         save_path = saver.save(session, '{}/iter/{:06d}.data'.format(output_path, i))
         f.write('Model saved in file: {}\n'.format(save_path))
@@ -346,6 +346,9 @@ def main(arch_path, images_path, labels_path, output_path, n_iter):
             f.flush()
 
             q.task_done()
+
+            if math.isnan(rmse) or math.isinf(rmse):
+                return
 
     t = threading.Thread(target=trainer)
     t.daemon = True
