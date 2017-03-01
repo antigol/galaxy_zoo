@@ -29,46 +29,46 @@ class CNN:
         assert x.get_shape().as_list() == [None, 424, 424, 3]
         summary_images(x, "layer0")
         x = nn.convolution(x, 8*4, w=6, s=2, input_repr='invariant') # 210
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
         x = nn.convolution(x) # 208
         summary_images(x, "layer2")
         x = nn.max_pool(x)
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 104, 104, 8*4]
         x = nn.convolution(x, 8*8) # 102
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
         x = nn.convolution(x) # 100
         summary_images(x, "layer4")
         x = nn.max_pool(x)
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 50, 50, 8*8]
         x = nn.convolution(x, 8*16) # 48
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
         x = nn.convolution(x) # 46
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
         x = nn.convolution(x) # 44
         summary_images(x, "layer6")
         x = nn.max_pool(x)
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 22, 22, 8*16]
         x = nn.convolution(x, 8*32) # 20
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
         x = nn.convolution(x) # 18
         x = nn.max_pool(x)
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 9, 9, 8*32]
         x = nn.convolution(x, 8*64) # 7
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
         x = nn.convolution(x, 8*128, w=7)
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
         x = tf.nn.dropout(x, self.tfkp)
 
         ########################################################################
@@ -77,11 +77,11 @@ class CNN:
         self.embedding_input = x
 
         x = nn.fullyconnected(x, 8*256)
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
         x = tf.nn.dropout(x, self.tfkp)
 
         x = nn.fullyconnected(x, 8*256)
-        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
         x = tf.nn.dropout(x, self.tfkp)
 
         self.test = x
