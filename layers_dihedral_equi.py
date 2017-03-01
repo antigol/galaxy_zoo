@@ -238,7 +238,7 @@ def concat(xs):
     return tf.concat(xs, f_dim)
 
 # pylint: disable=E1101
-def batch_normalization(x, acc, input_repr='regular'):
+def batch_normalization(x, acc, input_repr='regular', with_gamma=False):
     """Perform the amortized batch normalization, the mean and variance
     are accumulated according to the parameter acc.
     Typically acc = exp(- training steps / some number).
@@ -271,10 +271,11 @@ def batch_normalization(x, acc, input_repr='regular'):
             v.set_shape([f_in])
 
             beta = tf.Variable(tf.constant(0.0, shape=[f_in]))
-            gamma = tf.Variable(tf.constant(1.0, shape=[f_in]))
             tf.summary.histogram("beta", beta)
-            tf.summary.histogram("gamma", gamma)
-            return tf.nn.batch_normalization(x, m, v, beta, gamma, 1e-3)
+            if with_gamma:
+                gamma = tf.Variable(tf.constant(1.0, shape=[f_in]))
+                tf.summary.histogram("gamma", gamma)
+            return tf.nn.batch_normalization(x, m, v, beta, gamma if with_gamma else None, 1e-3)
     if input_repr == 'regular':
         assert f_in % 8 == 0
         with tf.name_scope("bn-8x{}".format(f_in // 8)):
@@ -296,7 +297,8 @@ def batch_normalization(x, acc, input_repr='regular'):
             v.set_shape([f_in])
 
             beta = tf.tile(tf.Variable(tf.constant(0.0, shape=[f_in // 8])), [8])
-            gamma = tf.tile(tf.Variable(tf.constant(1.0, shape=[f_in // 8])), [8])
             tf.summary.histogram("beta", beta)
-            tf.summary.histogram("gamma", gamma)
-            return tf.nn.batch_normalization(x, m, v, beta, gamma, 1e-3)
+            if with_gamma:
+                gamma = tf.tile(tf.Variable(tf.constant(1.0, shape=[f_in // 8])), [8])
+                tf.summary.histogram("gamma", gamma)
+            return tf.nn.batch_normalization(x, m, v, beta, gamma if with_gamma else None, 1e-3)

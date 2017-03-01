@@ -70,7 +70,7 @@ def max_pool(x):
         return scaleandshift(x, 0.83, -0.92)
 
 
-def batch_normalization(x, acc):
+def batch_normalization(x, acc, with_gamma=False):
     shape = x.get_shape().as_list()
     f_in = shape[-1]
 
@@ -95,7 +95,8 @@ def batch_normalization(x, acc):
         v.set_shape([f_in]) # pylint: disable=E1101
 
         beta = tf.Variable(tf.constant(0.0, shape=[f_in]))
-        gamma = tf.Variable(tf.constant(1.0, shape=[f_in]))
         tf.summary.histogram("beta", beta)
-        tf.summary.histogram("gamma", gamma)
-        return tf.nn.batch_normalization(x, m, v, beta, gamma, 1e-3)
+        if with_gamma:
+            gamma = tf.Variable(tf.constant(1.0, shape=[f_in]))
+            tf.summary.histogram("gamma", gamma)
+        return tf.nn.batch_normalization(x, m, v, beta, gamma if with_gamma else None, 1e-3)
