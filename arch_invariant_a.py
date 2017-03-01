@@ -145,7 +145,7 @@ class CNN:
 
     @staticmethod
     def batch(files, labels):
-        ids = np.random.choice(len(files), 20, replace=False)
+        ids = np.random.choice(len(files), 16, replace=False)
 
         xs = CNN.load([files[i] for i in ids])
         ys = labels[ids]
