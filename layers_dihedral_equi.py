@@ -68,11 +68,13 @@ def fullyconnected2(x_inv, x_reg, f_inv=None, f_reg=None,
 
         return (inv, reg)
 
-def fullyconnected(x, f_out=None, input_repr='reguar', output_repr='regular',
+def fullyconnected(x, f_out=None, input_repr='regular', output_repr='regular',
                    activation=relu, name='fullyconnected'):
     """..."""
     with tf.name_scope(name):
         x = fc(x, f_out, input_repr, output_repr)
+        # pylint: disable=E1101
+        f_out = x.get_shape().as_list()[1]
 
         if output_repr == 'invariant':
             x += tf.Variable(tf.constant(0.0, shape=[f_out]), name="b")
@@ -194,7 +196,9 @@ def convolution(x, f_out=None, w=3, s=1,
                 padding='VALID', name='convolution'):
     """..."""
     with tf.name_scope(name):
-        x = conv2d(x, f_out, s, w, input_repr, output_repr, padding)
+        x = conv2d(x, f_out, w, s, input_repr, output_repr, padding)
+        # pylint: disable=E1101
+        f_out = x.get_shape().as_list()[3]
 
         if output_repr == 'invariant':
             x += tf.Variable(tf.constant(0.0, shape=[f_out]), name="b")
@@ -294,7 +298,7 @@ def conv2d(x, f_out=None, w=3, s=1,
             f_out = f_in
 
         with tf.name_scope("{}-{}-{}".format(name, f_in, f_out)):
-            F0 = tf.random_normal([[0, 1, 1, 3, 3, 6, 0, 10][w], 1, 1, f_in, f_out])
+            F0 = tf.random_normal([[0, 1, 1, 3, 3, 6, 6, 10][w], 1, 1, f_in, f_out])
             F0 = F0 / math.sqrt(w * w * f_in)
 
             F = tf.Variable(F0, name="F")
@@ -320,6 +324,13 @@ def conv2d(x, f_out=None, w=3, s=1,
                      [3, 1, 0, 1, 3],
                      [4, 2, 1, 2, 4],
                      [5, 4, 3, 4, 5]]
+            elif w == 6:
+                p = [[5, 4, 3, 3, 4, 5],
+                     [4, 2, 1, 1, 2, 4],
+                     [3, 1, 0, 0, 1, 3],
+                     [3, 1, 0, 0, 1, 3],
+                     [4, 2, 1, 1, 2, 4],
+                     [5, 4, 3, 3, 4, 5]]
             elif w == 7:
                 p = [[9, 8, 7, 6, 7, 8, 9],
                      [8, 5, 4, 3, 4, 5, 8],
