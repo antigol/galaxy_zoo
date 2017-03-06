@@ -79,11 +79,11 @@ class CNN:
         x = tf.reshape(x, [-1, x.get_shape().as_list()[-1]])
         self.embedding_input = x
 
-        x = nn.fullyconnected(x, 8*256)
+        x = nn.fullyconnected(x, 8*128)
         x = nn.batch_normalization(x, self.tfacc)
         x = tf.nn.dropout(x, self.tfkp)
 
-        x = nn.fullyconnected(x, 8*256)
+        x = nn.fullyconnected(x, 8*128)
         x = nn.batch_normalization(x, self.tfacc)
         x = tf.nn.dropout(x, self.tfkp)
 
