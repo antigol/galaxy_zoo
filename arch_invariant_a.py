@@ -27,21 +27,25 @@ class CNN:
 
     def NN(self, x):
         assert x.get_shape().as_list() == [None, 424, 424, 3]
+        summary_images(x, "layer0")
         x = nn.convolution(x, 8*4, w=4, s=2, input_repr='invariant') # 211
         x = nn.batch_normalization(x, self.tfacc)
         x = nn.convolution(x) # 209
+        summary_images(x, "layer2")
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 209, 209, 8*4]
         x = nn.convolution(x, 8*8, w=5, s=2) # 103
         x = nn.batch_normalization(x, self.tfacc)
         x = nn.convolution(x) # 101
+        summary_images(x, "layer4")
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 101, 101, 8*8]
         x = nn.convolution(x, 8*16, w=5, s=2) # 49
         x = nn.batch_normalization(x, self.tfacc)
         x = nn.convolution(x) # 47
+        summary_images(x, "layer6")
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 47, 47, 8*16]
@@ -100,7 +104,6 @@ class CNN:
         self.tfacc = tf.placeholder_with_default(tf.constant(0.0, tf.float32), [], name="acc")
 
         x = self.tfx = tf.placeholder(tf.float32, [None, 424, 424, 3], name="input")
-        tf.summary.image("input", x, 3)
 
         with tf.name_scope("nn"):
             self.tfp = self.NN(x)

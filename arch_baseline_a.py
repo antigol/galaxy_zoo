@@ -2,8 +2,42 @@
 import math
 import tensorflow as tf
 import numpy as np
-import layers_dihedral_equi as nn
+import layers_normal as nn
 
+"""
+L'équivalent de arch_invariant_h
+"""
+
+def dihedral(x, i):
+    if len(x.shape) == 3:
+        if i & 4:
+            y = np.transpose(x, (1, 0, 2))
+        else:
+            y = x.copy()
+
+        if i&3 == 0:
+            return y
+        if i&3 == 1:
+            return y[:, ::-1]
+        if i&3 == 2:
+            return y[::-1, :]
+        if i&3 == 3:
+            return y[::-1, ::-1]
+
+    if len(x.shape) == 4:
+        if i & 4:
+            y = np.transpose(x, (0, 2, 1, 3))
+        else:
+            y = x.copy()
+
+        if i&3 == 0:
+            return y
+        if i&3 == 1:
+            return y[:, :, ::-1]
+        if i&3 == 2:
+            return y[:, ::-1, :]
+        if i&3 == 3:
+            return y[:, ::-1, ::-1]
 
 def summary_images(x, name):
     for i in range(min(4, x.get_shape().as_list()[3])):
@@ -28,64 +62,64 @@ class CNN:
     def NN(self, x):
         assert x.get_shape().as_list() == [None, 424, 424, 3]
         summary_images(x, "layer0")
-        x = nn.convolution(x, 8*4, w=6, s=2, input_repr='invariant') # 210
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
+        x = nn.convolution(x, 16, w=6, s=2) # 210
+        x = nn.batch_normalization(x, self.tfacc)
         x = nn.convolution(x) # 208
         summary_images(x, "layer2")
         x = nn.max_pool(x)
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
+        x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 104, 104, 8*4]
-        x = nn.convolution(x, 8*8) # 102
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
+        assert x.get_shape().as_list() == [None, 104, 104, 16]
+        x = nn.convolution(x, 32) # 102
+        x = nn.batch_normalization(x, self.tfacc)
         x = nn.convolution(x) # 100
         summary_images(x, "layer4")
         x = nn.max_pool(x)
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
+        x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 50, 50, 8*8]
-        x = nn.convolution(x, 8*16) # 48
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
+        assert x.get_shape().as_list() == [None, 50, 50, 32]
+        x = nn.convolution(x, 64) # 48
+        x = nn.batch_normalization(x, self.tfacc)
         x = nn.convolution(x) # 46
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
+        x = nn.batch_normalization(x, self.tfacc)
         x = nn.convolution(x) # 44
         summary_images(x, "layer7")
         x = nn.max_pool(x)
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
+        x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 22, 22, 8*16]
-        x = nn.convolution(x, 8*32) # 20
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
+        assert x.get_shape().as_list() == [None, 22, 22, 64]
+        x = nn.convolution(x, 128) # 20
+        x = nn.batch_normalization(x, self.tfacc)
         x = nn.convolution(x) # 18
         x = nn.max_pool(x)
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
+        x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 9, 9, 8*32]
-        x = nn.convolution(x, 8*64) # 7
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
-        x = nn.convolution(x, 8*128, w=7)
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
+        assert x.get_shape().as_list() == [None, 9, 9, 128]
+        x = nn.convolution(x, 256) # 7
+        x = nn.batch_normalization(x, self.tfacc)
+        x = nn.convolution(x, 1024, w=7)
+        x = nn.batch_normalization(x, self.tfacc)
         x = tf.nn.dropout(x, self.tfkp)
 
         ########################################################################
-        assert x.get_shape().as_list() == [None, 1, 1, 8*128]
+        assert x.get_shape().as_list() == [None, 1, 1, 1024]
         x = tf.reshape(x, [-1, x.get_shape().as_list()[-1]])
         self.embedding_input = x
 
-        x = nn.fullyconnected(x, 8*256)
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
+        x = nn.fullyconnected(x, 1024)
+        x = nn.batch_normalization(x, self.tfacc)
         x = tf.nn.dropout(x, self.tfkp)
 
-        x = nn.fullyconnected(x, 8*256)
-        x = nn.batch_normalization(x, self.tfacc, with_gamma=True)
+        x = nn.fullyconnected(x, 1024)
+        x = nn.batch_normalization(x, self.tfacc)
         x = tf.nn.dropout(x, self.tfkp)
 
         self.test = x
-        x = nn.fullyconnected(x, 37, activation=None, output_repr='invariant')
+        x = nn.fullyconnected(x, 37, activation=None)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 37]
@@ -154,7 +188,7 @@ class CNN:
 
     @staticmethod
     def batch(files, labels):
-        ids = np.random.choice(len(files), 20, replace=False)
+        ids = np.random.choice(len(files), 8, replace=False)
 
         xs = CNN.load([files[i] for i in ids])
         ys = labels[ids]
@@ -162,7 +196,7 @@ class CNN:
         for i in range(len(xs)):
             s = np.random.uniform(0.8, 1.2)
             u = np.random.uniform(-0.1, 0.1)
-            xs[i] = xs[i] * s + u
+            xs[i] = dihedral(xs[i], np.random.randint(8)) * s + u
 
         return xs, ys
 
