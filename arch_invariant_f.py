@@ -28,46 +28,46 @@ class CNN:
 
     def NN(self, x):
         assert x.get_shape().as_list() == [None, 424, 424, 3]
-        xi, xr = nn.convolution2(x, None, 4, 1, w=4, s=2) # 211
+        xi, xr = nn.convolution2(x, None, 3, 1, w=4, s=2) # 211
         xi = nn.batch_normalization(xi, self.tfacc, input_repr='invariant')
         xr = nn.batch_normalization(xr, self.tfacc)
         xi, xr = nn.convolution2(xi, xr) # 209
 
         ########################################################################
-        assert xi.get_shape().as_list() == [None, 209, 209, 4]
+        assert xi.get_shape().as_list() == [None, 209, 209, 3]
         assert xr.get_shape().as_list() == [None, 209, 209, 8*1]
-        xi, xr = nn.convolution2(xi, xr, 8, 2, w=5, s=2) # 103
+        xi, xr = nn.convolution2(xi, xr, 6, 2, w=5, s=2) # 103
         xi = nn.batch_normalization(xi, self.tfacc, input_repr='invariant')
         xr = nn.batch_normalization(xr, self.tfacc)
         xi, xr = nn.convolution2(xi, xr) # 101
 
         ########################################################################
-        assert xi.get_shape().as_list() == [None, 101, 101, 8]
+        assert xi.get_shape().as_list() == [None, 101, 101, 6]
         assert xr.get_shape().as_list() == [None, 101, 101, 8*2]
-        xi, xr = nn.convolution2(xi, xr, 16, 4, w=5, s=2) # 49
+        xi, xr = nn.convolution2(xi, xr, 12, 4, w=5, s=2) # 49
         xi = nn.batch_normalization(xi, self.tfacc, input_repr='invariant')
         xr = nn.batch_normalization(xr, self.tfacc)
         xi, xr = nn.convolution2(xi, xr) # 47
 
         ########################################################################
-        assert xi.get_shape().as_list() == [None, 47, 47, 16]
+        assert xi.get_shape().as_list() == [None, 47, 47, 12]
         assert xr.get_shape().as_list() == [None, 47, 47, 8*4]
-        xi, xr = nn.convolution2(xi, xr, 32, 8, w=5, s=2) # 22
+        xi, xr = nn.convolution2(xi, xr, 24, 8, w=5, s=2) # 22
         xi = nn.batch_normalization(xi, self.tfacc, input_repr='invariant')
         xr = nn.batch_normalization(xr, self.tfacc)
         xi, xr = nn.convolution2(xi, xr) # 20
 
         ########################################################################
-        assert xi.get_shape().as_list() == [None, 20, 20, 32]
+        assert xi.get_shape().as_list() == [None, 20, 20, 24]
         assert xr.get_shape().as_list() == [None, 20, 20, 8*8]
-        xi, xr = nn.convolution2(xi, xr, 64, 16, w=4, s=2) # 9
+        xi, xr = nn.convolution2(xi, xr, 48, 16, w=4, s=2) # 9
         xi = nn.batch_normalization(xi, self.tfacc, input_repr='invariant')
         xr = nn.batch_normalization(xr, self.tfacc)
 
         ########################################################################
-        assert xi.get_shape().as_list() == [None, 9, 9, 64]
+        assert xi.get_shape().as_list() == [None, 9, 9, 48]
         assert xr.get_shape().as_list() == [None, 9, 9, 8*16]
-        xi, xr = nn.convolution2(xi, xr, 128, 32) # 7
+        xi, xr = nn.convolution2(xi, xr, 96, 32) # 7
         xi = nn.batch_normalization(xi, self.tfacc, input_repr='invariant')
         xr = nn.batch_normalization(xr, self.tfacc)
         xi, xr = nn.convolution2(xi, xr, w=7) # 1
@@ -77,13 +77,13 @@ class CNN:
         xr = tf.nn.dropout(xr, self.tfkp)
 
         ########################################################################
-        assert xi.get_shape().as_list() == [None, 1, 1, 128]
+        assert xi.get_shape().as_list() == [None, 1, 1, 96]
         assert xr.get_shape().as_list() == [None, 1, 1, 8*32]
         xi = tf.reshape(xi, [-1, xi.get_shape().as_list()[-1]])
         xr = tf.reshape(xr, [-1, xr.get_shape().as_list()[-1]])
         self.embedding_input = xi
 
-        xi, xr = nn.fullyconnected2(xi, xr, 256, 64)
+        xi, xr = nn.fullyconnected2(xi, xr, 192, 64)
         xi = nn.batch_normalization(xi, self.tfacc, input_repr='invariant')
         xr = nn.batch_normalization(xr, self.tfacc)
         xi = tf.nn.dropout(xi, self.tfkp)
