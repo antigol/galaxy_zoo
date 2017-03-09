@@ -70,8 +70,7 @@ def convolution(x, f_out=None, s=1, w=3, padding='VALID',
 def max_pool(x):
     with tf.name_scope("max_pool"):
         x = tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-        return scaleandshift(x, 0.83, -0.92)
-
+        return x * 0.83 - 0.92
 
 def batch_normalization(x, acc, with_gamma=False):
     shape = x.get_shape().as_list()
