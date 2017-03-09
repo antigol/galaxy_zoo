@@ -10,6 +10,10 @@ import tensorflow as tf
 def relu(x):
     return (tf.nn.relu(x) - 0.3989422804014327) * 1.712858550449663
 
+def resigmoid(x):
+    return -0.815701 + 75.662 * tf.sigmoid(x - 5.0)
+
+default_activation = relu
 
 def scaleandshift(x, a0=1, b0=0):
     f = x.get_shape().as_list()[-1]
@@ -21,7 +25,7 @@ def scaleandshift(x, a0=1, b0=0):
         return a * x + b
 
 
-def fullyconnected(x, f_out=None, activation=relu, name='fc'):
+def fullyconnected(x, f_out=None, activation=default_activation, name='fc'):
     f_in = x.get_shape().as_list()[1]
     if f_out is None:
         f_out = f_in
@@ -42,7 +46,8 @@ def fullyconnected(x, f_out=None, activation=relu, name='fc'):
         return x
 
 #pylint: disable=R0913
-def convolution(x, f_out=None, s=1, w=3, padding='VALID', activation=relu, name='conv'):
+def convolution(x, f_out=None, s=1, w=3, padding='VALID',
+                activation=default_activation, name='conv'):
     f_in = x.get_shape().as_list()[3]
 
     if f_out is None:
