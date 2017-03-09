@@ -314,6 +314,9 @@ def main(arch_path, images_path, labels_path, output_path, n_iter):
                 run_metadata = tf.RunMetadata()
 
                 rmse, _ = cnn.train(session, xs, ys, options=run_options, run_metadata=run_metadata)
+                if math.isnan(rmse) or math.isinf(rmse):
+                    print("NaN quit")
+                    return
                 # google chrome : chrome://tracing/
 
                 tl = timeline.Timeline(run_metadata.step_stats)
@@ -322,9 +325,16 @@ def main(arch_path, images_path, labels_path, output_path, n_iter):
                     tlf.write(ctf)
             elif i % 50 == 0:
                 rmse, s = cnn.train(session, xs, ys, tensors=[summary])
+                if math.isnan(rmse) or math.isinf(rmse):
+                    print("NaN quit")
+                    return
+
                 writer.add_summary(s[0], i)
             else:
                 rmse, _ = cnn.train(session, xs, ys)
+                if math.isnan(rmse) or math.isinf(rmse):
+                    print("NaN quit")
+                    return
 
             fx.write('{}    {:.6} \n'.format(i, rmse))
             s = tf.Summary()
@@ -346,9 +356,6 @@ def main(arch_path, images_path, labels_path, output_path, n_iter):
             f.flush()
 
             q.task_done()
-
-            if math.isnan(rmse) or math.isinf(rmse):
-                return
 
     t = threading.Thread(target=trainer)
     t.daemon = True
