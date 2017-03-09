@@ -62,46 +62,46 @@ class CNN:
     def NN(self, x):
         assert x.get_shape().as_list() == [None, 424, 424, 3]
         summary_images(x, "layer0")
-        x = nn.convolution(x, 16, w=6, s=2) # 210
+        x = nn.convolution(x, 16, w=6, s=2, activation=nn.resigmoid) # 210
         x = nn.batch_normalization(x, self.tfacc)
-        x = nn.convolution(x) # 208
+        x = nn.convolution(x, activation=nn.resigmoid) # 208
         summary_images(x, "layer2")
         x = nn.max_pool(x)
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 104, 104, 16]
-        x = nn.convolution(x, 32) # 102
+        x = nn.convolution(x, 32, activation=nn.resigmoid) # 102
         x = nn.batch_normalization(x, self.tfacc)
-        x = nn.convolution(x) # 100
+        x = nn.convolution(x, activation=nn.resigmoid) # 100
         summary_images(x, "layer4")
         x = nn.max_pool(x)
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 50, 50, 32]
-        x = nn.convolution(x, 64) # 48
+        x = nn.convolution(x, 64, activation=nn.resigmoid) # 48
         x = nn.batch_normalization(x, self.tfacc)
-        x = nn.convolution(x) # 46
+        x = nn.convolution(x, activation=nn.resigmoid) # 46
         x = nn.batch_normalization(x, self.tfacc)
-        x = nn.convolution(x) # 44
+        x = nn.convolution(x, activation=nn.resigmoid) # 44
         summary_images(x, "layer7")
         x = nn.max_pool(x)
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 22, 22, 64]
-        x = nn.convolution(x, 128) # 20
+        x = nn.convolution(x, 128, activation=nn.resigmoid) # 20
         x = nn.batch_normalization(x, self.tfacc)
-        x = nn.convolution(x) # 18
+        x = nn.convolution(x, activation=nn.resigmoid) # 18
         x = nn.max_pool(x)
         x = nn.batch_normalization(x, self.tfacc)
 
         ########################################################################
         assert x.get_shape().as_list() == [None, 9, 9, 128]
-        x = nn.convolution(x, 256) # 7
+        x = nn.convolution(x, 256, activation=nn.resigmoid) # 7
         x = nn.batch_normalization(x, self.tfacc)
-        x = nn.convolution(x, 1024, w=7)
+        x = nn.convolution(x, 1024, w=7, activation=nn.resigmoid)
         x = nn.batch_normalization(x, self.tfacc)
         x = tf.nn.dropout(x, self.tfkp)
 
@@ -110,11 +110,11 @@ class CNN:
         x = tf.reshape(x, [-1, x.get_shape().as_list()[-1]])
         self.embedding_input = x
 
-        x = nn.fullyconnected(x, 1024)
+        x = nn.fullyconnected(x, 1024, activation=nn.resigmoid)
         x = nn.batch_normalization(x, self.tfacc)
         x = tf.nn.dropout(x, self.tfkp)
 
-        x = nn.fullyconnected(x, 1024)
+        x = nn.fullyconnected(x, 1024, activation=nn.resigmoid)
         x = nn.batch_normalization(x, self.tfacc)
         x = tf.nn.dropout(x, self.tfkp)
 
@@ -140,8 +140,6 @@ class CNN:
 
 
     def create_architecture(self):
-        nn.default_activation = nn.resigmoid
-        
         self.tfkp = tf.placeholder_with_default(tf.constant(1.0, tf.float32), [], name="kp")
         self.tfacc = tf.placeholder_with_default(tf.constant(0.0, tf.float32), [], name="acc")
 
